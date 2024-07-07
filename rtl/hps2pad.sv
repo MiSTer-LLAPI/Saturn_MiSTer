@@ -22,10 +22,16 @@ module HPS2PAD (
    input      [ 7: 0] JOY1_Y1,
    input      [ 7: 0] JOY1_X2,
    input      [ 7: 0] JOY1_Y2,
+   //LLAPI
+   input      [ 7: 0] JOY1_Z1,
+   input      [ 7: 0] JOY1_Z2,
    input      [ 7: 0] JOY2_X1,
    input      [ 7: 0] JOY2_Y1,
    input      [ 7: 0] JOY2_X2,
    input      [ 7: 0] JOY2_Y2,
+   input      [ 7: 0] JOY2_Z1,
+   input      [ 7: 0] JOY2_Z2,
+   //END LLAPI
 
 	input      [ 2: 0] JOY1_TYPE,
 	input      [ 2: 0] JOY2_TYPE
@@ -101,11 +107,13 @@ module HPS2PAD (
 						5'd09: if (PDR1O[6:5] == 2'b01) begin OUT1 <= JOY1_X1[3:0];                  TL1 <= 1; STATE1 <= 5'd10; end
 						5'd10: if (PDR1O[6:5] == 2'b00) begin OUT1 <= JOY1_Y1[7:4]^4'h8;             TL1 <= 0; STATE1 <= 5'd11; end
 						5'd11: if (PDR1O[6:5] == 2'b01) begin OUT1 <= JOY1_Y1[3:0];                  TL1 <= 1; STATE1 <= 5'd12; end
-						5'd12: if (PDR1O[6:5] == 2'b00) begin OUT1 <= 4'h0/*JOY1_Z1[7:4]^4'h8*/;           TL1 <= 0; STATE1 <= 5'd13; end
-						5'd13: if (PDR1O[6:5] == 2'b01) begin OUT1 <= 4'h0/*JOY1_Z1[3:0]*/;                TL1 <= 1; STATE1 <= 5'd14; end
+						//LLAPI
+						5'd12: if (PDR1O[6:5] == 2'b00) begin OUT1 <= JOY1_Z1[7:4];           TL1 <= 0; STATE1 <= 5'd13; end
+						5'd13: if (PDR1O[6:5] == 2'b01) begin OUT1 <= JOY1_Z1[3:0];                TL1 <= 1; STATE1 <= 5'd14; end
 						5'd14: if (JOY1_TYPE == PAD_3D &&
-						           PDR1O[6:5] == 2'b00) begin OUT1 <= 4'h0/*JOY1_Z2[7:4]^4'h8*/;           TL1 <= 0; STATE1 <= 5'd15; end
-						5'd15: if (PDR1O[6:5] == 2'b01) begin OUT1 <= 4'h1/*JOY1_Z2[3:0]*/;                TL1 <= 1; STATE1 <= 5'd16; end
+						           PDR1O[6:5] == 2'b00) begin OUT1 <= JOY1_Z2[7:4];           TL1 <= 0; STATE1 <= 5'd15; end
+						5'd15: if (PDR1O[6:5] == 2'b01) begin OUT1 <= JOY1_Z2[3:0];                TL1 <= 1; STATE1 <= 5'd16; end
+						//END LLAPI
 					endcase
 					if (PDR1O[6:5] == 2'b11) begin OUT1 <= 4'h1; TL1 <= 1; STATE1 <= 5'd0; end
 				end
@@ -162,11 +170,13 @@ module HPS2PAD (
 						5'd09: if (PDR2O[6:5] == 2'b01) begin OUT2 <= JOY2_X1[3:0];                  TL2 <= 1; STATE2 <= 5'd10; end
 						5'd10: if (PDR2O[6:5] == 2'b00) begin OUT2 <= JOY2_Y1[7:4]^4'h8;             TL2 <= 0; STATE2 <= 5'd11; end
 						5'd11: if (PDR2O[6:5] == 2'b01) begin OUT2 <= JOY2_Y1[3:0];                  TL2 <= 1; STATE2 <= 5'd12; end
-						5'd12: if (PDR2O[6:5] == 2'b00) begin OUT2 <= 4'h0/*JOY2_Z1[7:4]^4'h8*/;           TL2 <= 0; STATE2 <= 5'd13; end
-						5'd13: if (PDR2O[6:5] == 2'b01) begin OUT2 <= 4'h0/*JOY2_Z1[3:0]*/;                TL2 <= 1; STATE2 <= 5'd14; end
+						//LLAPI
+						5'd12: if (PDR2O[6:5] == 2'b00) begin OUT2 <= JOY2_Z1[7:4];           TL2 <= 0; STATE2 <= 5'd13; end
+						5'd13: if (PDR2O[6:5] == 2'b01) begin OUT2 <= JOY2_Z1[3:0];                TL2 <= 1; STATE2 <= 5'd14; end
 						5'd14: if (JOY2_TYPE == PAD_3D &&
-						           PDR2O[6:5] == 2'b00) begin OUT2 <= 4'h0/*JOY2_Z2[7:4]^4'h8*/;           TL2 <= 0; STATE2 <= 5'd15; end
-						5'd15: if (PDR2O[6:5] == 2'b01) begin OUT2 <= 4'h1/*JOY2_Z2[3:0]*/;                TL2 <= 1; STATE2 <= 5'd16; end
+						           PDR2O[6:5] == 2'b00) begin OUT2 <= JOY2_Z2[7:4];           TL2 <= 0; STATE2 <= 5'd15; end
+						5'd15: if (PDR2O[6:5] == 2'b01) begin OUT2 <= JOY2_Z2[3:0];                TL2 <= 1; STATE2 <= 5'd16; end
+						//END LLAPI
 					endcase
 					if (PDR2O[6:5] == 2'b11) begin OUT2 <= 4'h1; TL2 <= 1; STATE2 <= 5'd0; end
 				end

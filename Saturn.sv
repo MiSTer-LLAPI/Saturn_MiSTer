@@ -275,7 +275,9 @@ module emu
 		"P2-;",
 		"P2OFH,Pad 1,Digital,Off,Wheel,Mission Stick,3D Pad,Dual Mission,Mouse;",
 		"P2OIK,Pad 2,Digital,Off,Wheel,Mission Stick,3D Pad,Dual Mission,Mouse;",
-		"P2OR,SNAC,OFF,ON;",
+		//LLAPI
+		//"P2OR,SNAC,OFF,ON;",
+		//END LLAPI
 		"-;",
 		
 `ifndef DEBUG
@@ -348,14 +350,10 @@ module emu
 	wire [7:0] joystick_usb_analog_ly0;
 	wire [7:0] joystick_usb_analog_lx1;
 	wire [7:0] joystick_usb_analog_ly1;
-	wire [7:0] joystick_usb_analog_tl0;
-	wire [7:0] joystick_usb_analog_tr0;
-	wire [7:0] joystick_usb_analog_tl1;
-	wire [7:0] joystick_usb_analog_tr1;
-
-	//END LLAPI							 
+						 
 	wire [12:0] joystick_0,joystick_1,joystick_2,joystick_3,joystick_4;
-	wire  [7:0] joy0_x0,joy0_y0,joy0_x1,joy0_y1,joy1_x0,joy1_y0,joy1_x1,joy1_y1;
+	wire  [7:0] joy0_x0,joy0_y0,joy0_x1,joy0_y1,joy1_x0,joy1_y0,joy1_x1,joy1_y1,joy0_z1,joy0_z2,joy1_z1,joy1_z2;
+	//END LLAPI		
 	wire        ioctl_download;
 	wire        ioctl_wr;
 	wire [24:0] ioctl_addr;
@@ -920,16 +918,21 @@ module emu
 		
 		.JOY1(joy1),
 		.JOY2(joy2),
-
+		//LLAPI
 		.JOY1_X1(joy0_x0),
 		.JOY1_Y1(joy0_y0),
 		.JOY1_X2(joy0_x1),
 		.JOY1_Y2(joy0_y1),
+		.JOY1_Z1(joy0_z1),
+		.JOY1_Z2(joy0_z2),
 		.JOY2_X1(joy1_x0),
 		.JOY2_Y1(joy1_y0),
 		.JOY2_X2(joy1_x1),
 		.JOY2_Y2(joy1_y1),
-
+		.JOY2_Z1(joy1_z1),
+		.JOY2_Z2(joy1_z2),
+		//END LLAPI
+		
 		.JOY1_TYPE(status[17:15]),
 		.JOY2_TYPE(status[20:18])
 	);
@@ -1098,80 +1101,106 @@ wire use_llapi2 = llapi_en2 && llapi_select && ((|llapi_type2 && ~(&llapi_type2)
 
 //Port 1 mapping
 
-wire [12:0] joy_ll_a = {
-			llapi_buttons[8],  llapi_buttons[6],  llapi_buttons[3],  llapi_buttons[2], // L Z Y X
-			llapi_buttons[9],  llapi_buttons[5], // R Start
+wire [12:0] joy_ll_a;
+/*wire [7:0] axis_ll_a_lx;
+wire [7:0] axis_ll_a_ly;
+wire [7:0] axis_ll_a_tl;
+wire [7:0] axis_ll_a_tr;*/
+
+always_comb begin
+	if (llapi_type == 8 ) begin
+		joy_ll_a = {
+			1'b0,  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // L Z Y X
+		    1'b0,  llapi_buttons[5], // R Start
 			llapi_buttons[7],  llapi_buttons[1],  llapi_buttons[0], // C B A
 			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
 		};
+		joy0_x0 = llapi_analog[7:0] - 128; //Left stick X
+		joy0_y0 = llapi_analog[15:8] - 128; //Left stick Y
+		
+		joy0_x1 = llapi_analog[31:24] - 128; //Right stick X
+		joy0_y1 = llapi_analog[39:32] - 128; //Right stick Y
+		
+		joy0_z1 = llapi_analog[47:40]; //Left trigger
+		joy0_z2 = llapi_analog[23:16]; //Right trigger
 
-/*wire [7:0] axis_ll_a_lx = llapi_analog[7:0] - 128; //Left stick X
-wire [7:0] axis_ll_a_ly = llapi_analog[15:8] - 128; //Left stick Y
-wire [7:0] axis_ll_a_tl = llapi_analog[23:16]; //Left trigger
-wire [7:0] axis_ll_a_tr = llapi_analog[47:40]; //Right trigger*/
+	end else begin
+		joy_ll_a = {
+			llapi_buttons[8],  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // L Z Y X
+		    llapi_buttons[9],  llapi_buttons[5], // R Start
+			llapi_buttons[7],  llapi_buttons[1],  llapi_buttons[0], // C B A
+			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
+		};
+		joy0_x0 = 8'b0;
+		joy0_y0 = 8'b0;
+		
+		joy0_x1 = 8'b0;
+		joy0_y1 = 8'b0;
+		
+		joy0_z1 = 8'b0;
+		joy0_z2 = 8'b0;
+	end
+end
 	
 //Port 2 mapping
 
-wire [12:0] joy_ll_b = {
+wire [12:0] joy_ll_b;
+/*wire [7:0] axis_ll_b_lx;
+wire [7:0] axis_ll_b_ly;
+wire [7:0] axis_ll_b_tl;
+wire [7:0] axis_ll_b_tr;*/
+
+always_comb begin
+	if (llapi_type2 == 8 ) begin
+		joy_ll_b = {
+			1'b0,  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // L Z Y X
+		    1'b0,  llapi_buttons2[5], // R Start
+			llapi_buttons2[7],  llapi_buttons2[1],  llapi_buttons2[0], // C B A
+			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
+		};
+		joy1_x0 = llapi_analog2[7:0] - 128; //Left stick X
+		joy1_y0 = llapi_analog2[15:8] - 128; //Left stick Y
+		
+		joy1_x1 = llapi_analog2[31:24] - 128; //Right stick X
+		joy1_y1 = llapi_analog2[39:32] - 128; //Right stick Y
+		
+		joy1_z1 = llapi_analog2[47:40]; //Left trigger
+		joy1_z2 = llapi_analog2[23:16]; //Right trigger
+
+	end else begin
+		joy_ll_b = {
 			llapi_buttons2[8],  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // L Z Y X
 		    llapi_buttons2[9],  llapi_buttons2[5], // R Start
 			llapi_buttons2[7],  llapi_buttons2[1],  llapi_buttons2[0], // C B A
 			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
 		};
-
-/*wire [7:0] axis_ll_b_lx = llapi_analog2[7:0] - 128; //Left stick X
-wire [7:0] axis_ll_b_ly = llapi_analog2[15:8] - 128; //Left stick Y
-wire [7:0] axis_ll_b_tl = llapi_analog2[23:16]; //Left trigger
-wire [7:0] axis_ll_b_tr = llapi_analog2[47:40]; //Right trigger	*/
+		joy1_x0 = 8'b0;
+		joy1_y0 = 8'b0;
+		
+		joy1_x1 = 8'b0;
+		joy1_y1 = 8'b0;
+		
+		joy1_z1 = 8'b0;
+		joy1_z2 = 8'b0;
+	end
+end
 
 //Assign (DOWN + START + FIRST BUTTON) Combinaison to bring the OSD up - P1 and P2 ports.
 wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
 
 // if LLAPI is enabled, shift USB controllers over to the next available player slot
-always_comb begin
-         if (use_llapi & use_llapi2) begin
-                joystick_0 = joy_ll_a;
-                joystick_1 = joy_ll_b;
-                joystick_2 = joy_usb_0;
-                joystick_3 = joy_usb_1;
-				/*joy0_x0 = axis_ll_a_lx;
-				joy0_y0 = axis_ll_a_ly;
-				joy1_x0 = axis_ll_b_lx;
-				joy1_y0 = axis_ll_b_ly;
-				
-				joy0_x1 = axis_ll_a_tr;
-				joy0_y1 = axis_ll_a_tl;
-				joy1_x1 = axis_ll_b_tr;
-				joy1_y1 = axis_ll_b_tl;*/
-				
-        end else if (use_llapi ^ use_llapi2) begin
+
+always_comb begin 
+        if (use_llapi ^ use_llapi2) begin
                 joystick_0 = use_llapi  ? joy_ll_a : joy_usb_0;
                 joystick_1 = use_llapi2 ? joy_ll_b : joy_usb_0;
                 joystick_2 = joy_usb_1;
                 joystick_3 = joy_usb_2;
-				/*joy0_x0 = use_llapi  ? axis_ll_a_lx : joystick_usb_analog_lx0;
-				joy0_y0 = use_llapi  ? axis_ll_a_ly : joystick_usb_analog_ly0;
-				joy1_x0 = use_llapi2  ? axis_ll_b_lx : joystick_usb_analog_lx1;
-				joy1_y0 = use_llapi2  ? axis_ll_b_ly : joystick_usb_analog_ly1;
-				
-				joy0_x1 = use_llapi  ? axis_ll_a_tr : joystick_usb_analog_tr0;
-				joy0_y1 = use_llapi  ? axis_ll_a_tl : joystick_usb_analog_tl0;
-				joy1_x1 = use_llapi2  ? axis_ll_b_tr : joystick_usb_analog_tr1;
-				joy1_y1 = use_llapi2  ? axis_ll_b_tl : joystick_usb_analog_tl1;*/
-				
         end else begin
                 joystick_0 = joy_usb_0;
                 joystick_1 = joy_usb_1;
                 joystick_2 = joy_usb_2;
-                joystick_3 = joy_usb_3;
-				/*joy0_x0 = joystick_usb_analog_lx0;
-				joy0_y0 = joystick_usb_analog_ly0;
-				joy1_x0 = joystick_usb_analog_lx1;
-				joy1_y0 = joystick_usb_analog_ly1;
-				joy0_x1 = joystick_usb_analog_tr0;
-				joy0_y1 = joystick_usb_analog_tl0;
-				joy1_x1 = joystick_usb_analog_tr1;
-				joy1_y1 = joystick_usb_analog_tl1;*/
+                joystick_3 = joy_usb_3;		
         end
 end
 
