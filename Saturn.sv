@@ -1084,8 +1084,8 @@ end
 // controller id is 0 if there is either an Atari controller or no controller
 // if id is 0, assume there is no controller until a button is pressed
 // also check for 255 and treat that as 'no controller' as well
-wire use_llapi  = llapi_en  && llapi_select && ((|llapi_type  && ~(&llapi_type))  || llapi_button_pressed);
-wire use_llapi2 = llapi_en2 && llapi_select && ((|llapi_type2 && ~(&llapi_type2)) || llapi_button_pressed2);
+//wire use_llapi  = llapi_en  && llapi_select && ((|llapi_type  && ~(&llapi_type))  || llapi_button_pressed);
+//wire use_llapi2 = llapi_en2 && llapi_select && ((|llapi_type2 && ~(&llapi_type2)) || llapi_button_pressed2);
 
 // Indexes:
 // 0 = D+    = P1 Latch
@@ -1190,19 +1190,12 @@ wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (l
 
 // if LLAPI is enabled, shift USB controllers over to the next available player slot
 
-always_comb begin 
-        if (use_llapi ^ use_llapi2) begin
-                joystick_0 = use_llapi  ? joy_ll_a : joy_usb_0;
-                joystick_1 = use_llapi2 ? joy_ll_b : joy_usb_0;
-                joystick_2 = joy_usb_1;
-                joystick_3 = joy_usb_2;
-        end else begin
-                joystick_0 = joy_usb_0;
-                joystick_1 = joy_usb_1;
-                joystick_2 = joy_usb_2;
-                joystick_3 = joy_usb_3;		
-        end
-end
+
+assign joystick_0 = joy_ll_a;
+assign joystick_1 = joy_ll_b;
+assign joystick_2 = joy_usb_0;
+assign joystick_3 = joy_usb_1;
+        
 
 //////////////////  END LLAPI   ///////////////////
 
