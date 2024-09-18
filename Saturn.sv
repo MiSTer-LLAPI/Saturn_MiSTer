@@ -376,6 +376,7 @@ module emu
 	wire        forced_scandoubler;
 	wire [10:0] ps2_key;
 	wire [24:0] ps2_mouse;
+	wire [15:0] ps2_mouse_ext;
 	
 	wire [35:0] EXT_BUS;
 	
@@ -430,6 +431,7 @@ module emu
 	
 		.ps2_key(ps2_key),
 		.ps2_mouse(ps2_mouse),
+		.ps2_mouse_ext(ps2_mouse_ext),
 	
 		.EXT_BUS(EXT_BUS)
 	);
@@ -934,7 +936,10 @@ module emu
 		//END LLAPI
 		
 		.JOY1_TYPE(status[17:15]),
-		.JOY2_TYPE(status[20:18])
+		.JOY2_TYPE(status[20:18]),
+
+		.MOUSE(ps2_mouse),
+		.MOUSE_EXT(ps2_mouse_ext)
 	);
 	
 	wire [13:1] CD_BUF_ADDR;
