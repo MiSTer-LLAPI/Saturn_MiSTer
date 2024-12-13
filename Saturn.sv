@@ -13,6 +13,7 @@
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //============================================================================
+//LLAPI : llapi.sv needs to be in rtl folder and needs to be declared in file.qip (set_global_assignment -name SYSTEMVERILOG_FILE rtl/llapi.sv)
 
 module emu
 (
@@ -176,7 +177,7 @@ module emu
 	assign BUTTONS   = llapi_osd;
 	assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 	//assign USER_OUT = '0;
-	//ENDLLAPI		
+	//END LLAPI		
 
 	always_comb begin
 		if (status[10]) begin
@@ -626,17 +627,26 @@ module emu
 			USERJOYSTICK <= {USER_IN[4], USER_IN[6], USER_IN[2], USER_IN[3], USER_IN[5], USER_IN[0], USER_IN[1]};//TH, C(TR), B(TL), R, L, D, U
 			USER_OUT <= {USERJOYSTICKOUT[5], USERJOYSTICKOUT[2], USERJOYSTICKOUT[6], USERJOYSTICKOUT[3], USERJOYSTICKOUT[4], USERJOYSTICKOUT[0], USERJOYSTICKOUT[1]};
 		end else begin*/
-			USER_OUT= 6'b111111;
-		if (llapi_select) begin
+			//USER_OUT= 6'b111111;
+		//if (llapi_select) begin
+		
+		// Indexes:
+		// 0 = D+    = P1 Latch
+		// 1 = D-    = P1 Data
+		// 2 = TX-   = LLAPI Enable
+		// 3 = GND_d = N/C
+		// 4 = RX+   = P2 Latch
+		// 5 = RX-   = P2 Data
+
 			USER_OUT[0] = llapi_latch_o;
 			USER_OUT[1] = llapi_data_o;
-			USER_OUT[2] = ~(llapi_select & ~OSD_STATUS); // LED for Blister
+			USER_OUT[2] = OSD_STATUS; // LED for Blister
 			USER_OUT[4] = llapi_latch_o2;
 			USER_OUT[5] = llapi_data_o2;
-		end	
+		//end	
 		//end
 	end
-	//ENDLLAPI
+	//END LLAPI
 	
 	wire [24:0] MEM_A;
 	wire [31:0] MEM_DI;
@@ -1056,19 +1066,7 @@ wire [71:0] llapi_analog, llapi_analog2;
 wire [7:0]  llapi_type, llapi_type2;
 wire llapi_en, llapi_en2;
 
-wire llapi_select = 1'b1;
-
 wire llapi_latch_o, llapi_latch_o2, llapi_data_o, llapi_data_o2;
-
-// LLAPI Indexes:
-// 0 = D+    = P1 Latch
-// 1 = D-    = P1 Data
-// 2 = TX-   = LLAPI Enable
-// 3 = GND_d = N/C
-// 4 = RX+   = P2 Latch
-// 5 = RX-   = P2 Data
-
-
 
 //Port 1 conf
 LLAPI llapi
@@ -1079,7 +1077,7 @@ LLAPI llapi
 	.IO_LATCH_OUT(llapi_latch_o),
 	.IO_DATA_IN(USER_IN[1]),
 	.IO_DATA_OUT(llapi_data_o),
-	.ENABLE(llapi_select & ~OSD_STATUS),
+	.ENABLE(~OSD_STATUS),
 	.LLAPI_BUTTONS(llapi_buttons),
 	.LLAPI_ANALOG(llapi_analog),
 	.LLAPI_TYPE(llapi_type),
@@ -1095,40 +1093,12 @@ LLAPI llapi2
 	.IO_LATCH_OUT(llapi_latch_o2),
 	.IO_DATA_IN(USER_IN[5]),
 	.IO_DATA_OUT(llapi_data_o2),
-	.ENABLE(llapi_select & ~OSD_STATUS),
+	.ENABLE(~OSD_STATUS),
 	.LLAPI_BUTTONS(llapi_buttons2),
 	.LLAPI_ANALOG(llapi_analog2),
 	.LLAPI_TYPE(llapi_type2),
 	.LLAPI_EN(llapi_en2)
 );
-
-reg llapi_button_pressed, llapi_button_pressed2;
-
-always @(posedge CLK_50M) begin
-        if (RESET) begin
-                llapi_button_pressed  <= 0;
-                llapi_button_pressed2 <= 0;
-	end else begin
-	       	if (|llapi_buttons)
-                	llapi_button_pressed  <= 1;
-        	if (|llapi_buttons2)
-                	llapi_button_pressed2 <= 1;
-	end
-end
-
-// controller id is 0 if there is either an Atari controller or no controller
-// if id is 0, assume there is no controller until a button is pressed
-// also check for 255 and treat that as 'no controller' as well
-//wire use_llapi  = llapi_en  && llapi_select && ((|llapi_type  && ~(&llapi_type))  || llapi_button_pressed);
-//wire use_llapi2 = llapi_en2 && llapi_select && ((|llapi_type2 && ~(&llapi_type2)) || llapi_button_pressed2);
-
-// Indexes:
-// 0 = D+    = P1 Latch
-// 1 = D-    = P1 Data
-// 2 = TX-   = LLAPI Enable
-// 3 = GND_d = N/C
-// 4 = RX+   = P2 Latch
-// 5 = RX-   = P2 Data
 
 //Controller string provided by core for reference (order is important)
 //Controller specific mapping based on type. More info here : https://docs.google.com/document/d/12XpxrmKYx_jgfEPyw-O2zex1kTQZZ-NSBdLO2RQPRzM/edit
@@ -1137,12 +1107,9 @@ end
 //Port 1 mapping
 
 wire [12:0] joy_ll_a;
-/*wire [7:0] axis_ll_a_lx;
-wire [7:0] axis_ll_a_ly;
-wire [7:0] axis_ll_a_tl;
-wire [7:0] axis_ll_a_tr;*/
 
 always_comb begin
+	//Saturn 3D controller
 	if (llapi_type == 8 ) begin
 		joy_ll_a = {
 			1'b0,  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // L Z Y X
@@ -1180,12 +1147,9 @@ end
 //Port 2 mapping
 
 wire [12:0] joy_ll_b;
-/*wire [7:0] axis_ll_b_lx;
-wire [7:0] axis_ll_b_ly;
-wire [7:0] axis_ll_b_tl;
-wire [7:0] axis_ll_b_tr;*/
 
 always_comb begin
+	//Saturn 3D controller
 	if (llapi_type2 == 8 ) begin
 		joy_ll_b = {
 			1'b0,  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // L Z Y X
@@ -1222,9 +1186,6 @@ end
 
 //Assign (DOWN + START + FIRST BUTTON) Combinaison to bring the OSD up - P1 and P2 ports.
 wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
-
-// if LLAPI is enabled, shift USB controllers over to the next available player slot
-
 
 assign joystick_0 = joy_ll_a;
 assign joystick_1 = joy_ll_b;
