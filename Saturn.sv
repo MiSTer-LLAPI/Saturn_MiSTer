@@ -53,7 +53,6 @@ module emu
 	input  [11:0] HDMI_WIDTH,
 	input  [11:0] HDMI_HEIGHT,
 	output        HDMI_FREEZE,
-	output        HDMI_BLACKOUT,
 
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
@@ -246,7 +245,7 @@ module emu
 	`include "build_id.v"
 	localparam CONF_STR = {
 		"Saturn;;",
-		"S0,CUECHD,Insert Disc;",
+		"S0,CUECHD,Insert Disk;",
 		"FS2,BIN,Load bios;",
 		"FS3,BIN,Load cartridge;",
 		"-;",
@@ -269,7 +268,6 @@ module emu
 		"P1OA,Aspect Ratio,4:3,Stretched;",
 		"P1OB,320x224 Aspect,Original,Corrected;",
 		"P1OT,Deinterlacing, Weave, Bob;",
-		"P1O[1],Black Transitions,On,Off;",
 //		"P1O13,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 //		"P1-;",
 //		"P1OC,Border,No,Yes;",
@@ -392,8 +390,6 @@ module emu
 	
 	wire [21:0] gamma_bus;
 	wire [15:0] sdram_sz;
-        
-	assign HDMI_BLACKOUT = ~status[1];
 	
 	hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	(
