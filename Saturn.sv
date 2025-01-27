@@ -245,17 +245,17 @@ module emu
 	`include "build_id.v"
 	localparam CONF_STR = {
 		"Saturn;;",
+		//LLAPI: OSD menu item
+		//LLAPI Always ON
+		"-,>> LLAPI enabled core    <<;",
+		"-,>> Connect USER I/O port <<;",
+		"-;",
+		//END LLAPI	
 		"S0,CUECHD,Insert Disk;",
 		"FS2,BIN,Load bios;",
 		"FS3,BIN,Load cartridge;",
-		"-;",
-		//LLAPI: OSD menu item
-		//LLAPI Always ON
-		"-,<< LLAPI enabled >>;",
-		"-,<< Use USER I/O port >>;",
-		"-;",
-		//END LLAPI					
-		"OLN,Cartridge,None,ROM 2M,DRAM 1M,DRAM 4M,BACKUP;",
+		"-;",				
+		"OLN,Cartridge,None,ROM 2M,DRAM 1M,DRAM 4M,BACKUP,STV;",
 		"o13,Region,Japan,Taiwan,USA,Brazil,Korea,Asia,Europe,Auto;",
 		"-;",
 		"D0RO,Load Backup RAM;",
@@ -364,7 +364,7 @@ module emu
 	//END LLAPI		
 	wire        ioctl_download;
 	wire        ioctl_wr;
-	wire [24:0] ioctl_addr;
+	wire [25:0] ioctl_addr;
 	wire [15:0] ioctl_data;
 	wire  [7:0] ioctl_index;
 	reg         ioctl_wait = 0;
@@ -385,6 +385,8 @@ module emu
 	wire [10:0] ps2_key;
 	wire [24:0] ps2_mouse;
 	wire [15:0] ps2_mouse_ext;
+	
+	wire [64:0] RTC;
 	
 	wire [35:0] EXT_BUS;
 	
@@ -440,6 +442,8 @@ module emu
 		.ps2_key(ps2_key),
 		.ps2_mouse(ps2_mouse),
 		.ps2_mouse_ext(ps2_mouse_ext),
+		
+		.RTC(RTC),
 	
 		.EXT_BUS(EXT_BUS)
 	);
@@ -652,6 +656,7 @@ module emu
 	wire        RAML_CS_N;
 	wire        RAMH_CS_N;
 	wire        RAMH_RFS;
+	wire        STVIO_CS_N;
 	wire  [3:0] MEM_DQM_N;
 	wire        MEM_RD_N;
 	wire        MEM_WAIT_N;
@@ -725,7 +730,7 @@ module emu
 	wire [15:0] CD_RAM_Q;
 	wire        CD_RAM_RDY;
 	
-	wire [24:1] CART_MEM_A;
+	wire [25:1] CART_MEM_A;
 	wire [15:0] CART_MEM_D;
 	wire [15:0] CART_MEM_Q;
 	wire [ 1:0] CART_MEM_WE;
@@ -821,6 +826,7 @@ module emu
 		.RAML_CS_N(RAML_CS_N),
 		.RAMH_CS_N(RAMH_CS_N),
 		.RAMH_RFS(RAMH_RFS),
+		.STVIO_CS_N(STVIO_CS_N),
 		.MEM_RD_N(MEM_RD_N),
 		.MEM_WAIT_N(MEM_WAIT_N),
 		
@@ -871,6 +877,7 @@ module emu
 		
 		.SMPC_CE(SMPC_CE),
 		.TIME_SET(~status[32]),
+		.RTC(RTC),
 		.SMPC_AREA(area_code),
 		.SMPC_DOTSEL(SMPC_DOTSEL),
 		 //LLAPI
@@ -908,6 +915,8 @@ module emu
 		.CART_MEM_Q(CART_MEM_Q),
 		.CART_MEM_RDY(CART_MEM_RDY),
 		
+		.STV_SW('1),
+		
 		.R(R),
 		.G(G),
 		.B(B),
@@ -937,7 +946,27 @@ module emu
 		.DBG_EXT(DBG_EXT)
 	);
 	
-	//LLAPI	
+	wire [ 7:0] STVIO_DO;
+	STV STVIO
+	(
+		.CLK(clk_sys),
+		.RST_N(~rst_sys),
+		.CE_R(SYS_CE_R),
+		.CE_F(SYS_CE_F),
+		
+		.RES_N(1'b1),
+		
+		.A(MEM_A[6:1]),
+		.DI(MEM_DO[7:0]),
+		.DO(STVIO_DO),
+		.CS_N(STVIO_CS_N),
+		.RW_N(MEM_DQM_N[0]),
+		
+		.JOY1(joy1),
+		.JOY2(joy2)
+	);
+	
+	//LLAPI
 	assign USERJOYSTICKOUT = SMPC_PDR1O;
 	//END LLAPI
 	
@@ -1201,8 +1230,8 @@ assign joystick_3 = joy_usb_1;
 //		if (~ddr_busy[7] && old_busy) ioctl_wait <= 0;
 		ioctl_wait <= bios_busy;
 	end
-	wire [25:1] IO_ADDR = cart_download ? {4'b0011,ioctl_addr[21:1]} : {7'b0000000,ioctl_addr[18:1]};
-	wire [15:0] IO_DATA = {ioctl_data[7:0],ioctl_data[15:8]};
+	wire [26:1] IO_ADDR = cart_download ? {1'b1,ioctl_addr[25:1]} : {8'b00000000,ioctl_addr[18:1]};
+	wire [15:0] IO_DATA = cart_type == 3'h5 ? ioctl_data : {ioctl_data[7:0],ioctl_data[15:8]};
 	wire        IO_WR = (bios_download | cart_download) & ioctl_wr;
 	
 	wire [31:0] ddr_do[10];
@@ -1277,7 +1306,7 @@ assign joystick_3 = joy_usb_1;
 		.cart_wr  ('0),
 		.cart_rd  (0),
 `else
-		.cart_addr(CART_MEM_A[21:1]),
+		.cart_addr(CART_MEM_A),
 		.cart_din (CART_MEM_D),
 		.cart_wr  (CART_MEM_WE),
 		.cart_rd  (CART_MEM_RD),
@@ -1341,11 +1370,11 @@ assign joystick_3 = joy_usb_1;
 `endif
 	
 `ifdef MISTER_DUAL_SDRAM
-	assign MEM_DI     = !RAMH_CS_N ? sdr2_do : raml_do;
-	assign MEM_WAIT_N = !RAMH_CS_N ? ~sdr2_busy : ~raml_busy;
+	assign MEM_DI     = !RAMH_CS_N ? sdr2_do : !STVIO_CS_N ? {24'hFFFFFF,STVIO_DO} : raml_do;
+	assign MEM_WAIT_N = !RAMH_CS_N ? ~sdr2_busy : !STVIO_CS_N ? 1'b1 : ~raml_busy;
 `else
-	assign MEM_DI     = !RAMH_CS_N ? ramh_do : raml_do;
-	assign MEM_WAIT_N = !RAMH_CS_N ? ~ramh_busy : ~raml_busy;
+	assign MEM_DI     = !RAMH_CS_N ? ramh_do : !STVIO_CS_N ? {24'hFFFFFF,STVIO_DO} : raml_do;
+	assign MEM_WAIT_N = !RAMH_CS_N ? ~ramh_busy : !STVIO_CS_N ? 1'b1 : ~raml_busy;
 `endif
 
 
