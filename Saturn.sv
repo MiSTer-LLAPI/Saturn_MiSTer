@@ -622,30 +622,13 @@ module emu
 	//wire snac = status[27];
 	//reg  [6:0] USERJOYSTICK;
 	//wire [6:0] USERJOYSTICKOUT;
-	always @(posedge clk_sys) begin
-		/*if (snac) begin
-			USERJOYSTICK <= {USER_IN[4], USER_IN[6], USER_IN[2], USER_IN[3], USER_IN[5], USER_IN[0], USER_IN[1]};//TH, C(TR), B(TL), R, L, D, U
-			USER_OUT <= {USERJOYSTICKOUT[5], USERJOYSTICKOUT[2], USERJOYSTICKOUT[6], USERJOYSTICKOUT[3], USERJOYSTICKOUT[4], USERJOYSTICKOUT[0], USERJOYSTICKOUT[1]};
-		end else begin*/
-			//USER_OUT= 6'b111111;
-		//if (llapi_select) begin
-		
-		// Indexes:
-		// 0 = D+    = P1 Latch
-		// 1 = D-    = P1 Data
-		// 2 = TX-   = LLAPI Enable
-		// 3 = GND_d = N/C
-		// 4 = RX+   = P2 Latch
-		// 5 = RX-   = P2 Data
-
-			USER_OUT[0] = llapi_latch_o;
-			USER_OUT[1] = llapi_data_o;
-			USER_OUT[2] = OSD_STATUS; // LED for Blister
-			USER_OUT[4] = llapi_latch_o2;
-			USER_OUT[5] = llapi_data_o2;
+	//always @(posedge clk_sys) begin
+		///if (snac) begin
+			//USERJOYSTICK <= {USER_IN[4], USER_IN[6], USER_IN[2], USER_IN[3], USER_IN[5], USER_IN[0], USER_IN[1]};//TH, C(TR), B(TL), R, L, D, U
+			//USER_OUT <= {USERJOYSTICKOUT[5], USERJOYSTICKOUT[2], USERJOYSTICKOUT[6], USERJOYSTICKOUT[3], USERJOYSTICKOUT[4], USERJOYSTICKOUT[0], USERJOYSTICKOUT[1]};
 		//end	
 		//end
-	end
+	//end
 	//END LLAPI
 	
 	wire [24:0] MEM_A;
@@ -986,18 +969,18 @@ module emu
 		.JOY1(joy1),
 		.JOY2(joy2),
 		//LLAPI
-		.JOY1_X1(joy0_x0),
-		.JOY1_Y1(joy0_y0),
-		.JOY1_X2(joy0_x1),
-		.JOY1_Y2(joy0_y1),
-		.JOY1_Z1(joy0_z1),
-		.JOY1_Z2(joy0_z2),
-		.JOY2_X1(joy1_x0),
-		.JOY2_Y1(joy1_y0),
-		.JOY2_X2(joy1_x1),
-		.JOY2_Y2(joy1_y1),
-		.JOY2_Z1(joy1_z1),
-		.JOY2_Z2(joy1_z2),
+		.JOY1_X1((~use_llapi & use_llapi2) ? joy1_x0 : joy0_x0),
+		.JOY1_Y1((~use_llapi & use_llapi2) ? joy1_y0 : joy0_y0),
+		.JOY1_X2((~use_llapi & use_llapi2) ? joy1_x1 : joy0_x1),
+		.JOY1_Y2((~use_llapi & use_llapi2) ? joy1_y1 : joy0_y1),
+		.JOY1_Z1((~use_llapi & use_llapi2) ? joy1_z1 : joy0_z1),
+		.JOY1_Z2((~use_llapi & use_llapi2) ? joy1_z2 : joy0_z2),
+		.JOY2_X1((use_llapi & use_llapi2) ? joy1_x0 : 8'b0),
+		.JOY2_Y1((use_llapi & use_llapi2) ? joy1_y0 : 8'b0),
+		.JOY2_X2((use_llapi & use_llapi2) ? joy1_x1 : 8'b0),
+		.JOY2_Y2((use_llapi & use_llapi2) ? joy1_y0 : 8'b0),
+		.JOY2_Z1((use_llapi & use_llapi2) ? joy1_z1 : 8'b0),
+		.JOY2_Z2((use_llapi & use_llapi2) ? joy1_z2 : 8'b0),
 		//END LLAPI
 		
 		.JOY1_TYPE(status[17:15]),
@@ -1090,8 +1073,28 @@ wire [31:0] llapi_buttons, llapi_buttons2;
 wire [71:0] llapi_analog, llapi_analog2;
 wire [7:0]  llapi_type, llapi_type2;
 wire llapi_en, llapi_en2;
-
 wire llapi_latch_o, llapi_latch_o2, llapi_data_o, llapi_data_o2;
+wire [11:0] joy_ll_a;
+wire [11:0] joy_ll_b;
+
+//Assign (DOWN + START + FIRST BUTTON) Combinaison to bring the OSD up - P1 and P2 ports.
+wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
+
+// LLAPI Indexes:
+// 0 = D+    = P1 Latch
+// 1 = D-    = P1 Data
+// 2 = TX-   = LLAPI Enable
+// 3 = GND_d = N/C
+// 4 = RX+   = P2 Latch
+// 5 = RX-   = P2 Data
+
+always_comb begin
+		USER_OUT[0] = llapi_latch_o;
+		USER_OUT[1] = llapi_data_o;
+		USER_OUT[2] = OSD_STATUS; // Blister LED
+		USER_OUT[4] = llapi_latch_o2;
+		USER_OUT[5] = llapi_data_o2;
+end
 
 //Port 1 conf
 LLAPI llapi
@@ -1125,13 +1128,17 @@ LLAPI llapi2
 	.LLAPI_EN(llapi_en2)
 );
 
+// controller id is 0 if there is either an Atari controller or no controller
+// if id is 0, assume there is no controller
+// also check for 255 ('Searching mode') and treat that as 'no controller' as well
+wire use_llapi  = llapi_en && ((|llapi_type  && ~(&llapi_type))); //  || llapi_button_pressed);
+wire use_llapi2 = llapi_en2 && ((|llapi_type2 && ~(&llapi_type2))); // || llapi_button_pressed2);
+
 //Controller string provided by core for reference (order is important)
 //Controller specific mapping based on type. More info here : https://docs.google.com/document/d/12XpxrmKYx_jgfEPyw-O2zex1kTQZZ-NSBdLO2RQPRzM/edit
 //llapi_Buttons id are HID id - 1
 
 //Port 1 mapping
-
-wire [12:0] joy_ll_a;
 
 always_comb begin
 	//Saturn 3D controller
@@ -1142,14 +1149,14 @@ always_comb begin
 			llapi_buttons[7],  llapi_buttons[1],  llapi_buttons[0], // C B A
 			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
 		};
-		joy0_x0 = llapi_analog[7:0] - 128; //Left stick X
-		joy0_y0 = llapi_analog[15:8] - 128; //Left stick Y
+		joy0_x0 = OSD_STATUS ? 8'b0 : llapi_analog[7:0] - 128; //Left stick X
+		joy0_y0 = OSD_STATUS ? 8'b0 : llapi_analog[15:8] - 128; //Left stick Y
 		
-		joy0_x1 = llapi_analog[31:24] - 128; //Right stick X
-		joy0_y1 = llapi_analog[39:32] - 128; //Right stick Y
+		joy0_x1 = OSD_STATUS ? 8'b0 : llapi_analog[31:24] - 128; //Right stick X
+		joy0_y1 = OSD_STATUS ? 8'b0 : llapi_analog[39:32] - 128; //Right stick Y
 		
-		joy0_z1 = llapi_analog[47:40]; //Left trigger
-		joy0_z2 = llapi_analog[23:16]; //Right trigger
+		joy0_z1 = OSD_STATUS ? 8'b0 : llapi_analog[47:40]; //Left trigger
+		joy0_z2 = OSD_STATUS ? 8'b0 : llapi_analog[23:16]; //Right trigger
 
 	end else begin
 		joy_ll_a = {
@@ -1171,8 +1178,6 @@ end
 	
 //Port 2 mapping
 
-wire [12:0] joy_ll_b;
-
 always_comb begin
 	//Saturn 3D controller
 	if (llapi_type2 == 8 ) begin
@@ -1182,14 +1187,14 @@ always_comb begin
 			llapi_buttons2[7],  llapi_buttons2[1],  llapi_buttons2[0], // C B A
 			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
 		};
-		joy1_x0 = llapi_analog2[7:0] - 128; //Left stick X
-		joy1_y0 = llapi_analog2[15:8] - 128; //Left stick Y
+		joy1_x0 = OSD_STATUS ? 8'b0 : llapi_analog2[7:0] - 128; //Left stick X
+		joy1_y0 = OSD_STATUS ? 8'b0 : llapi_analog2[15:8] - 128; //Left stick Y
 		
-		joy1_x1 = llapi_analog2[31:24] - 128; //Right stick X
-		joy1_y1 = llapi_analog2[39:32] - 128; //Right stick Y
+		joy1_x1 = OSD_STATUS ? 8'b0 : llapi_analog2[31:24] - 128; //Right stick X
+		joy1_y1 = OSD_STATUS ? 8'b0 : llapi_analog2[39:32] - 128; //Right stick Y
 		
-		joy1_z1 = llapi_analog2[47:40]; //Left trigger
-		joy1_z2 = llapi_analog2[23:16]; //Right trigger
+		joy1_z1 = OSD_STATUS ? 8'b0 : llapi_analog2[47:40]; //Left trigger
+		joy1_z2 = OSD_STATUS ? 8'b0 : llapi_analog2[23:16]; //Right trigger
 
 	end else begin
 		joy_ll_b = {
@@ -1209,14 +1214,23 @@ always_comb begin
 	end
 end
 
-//Assign (DOWN + START + FIRST BUTTON) Combinaison to bring the OSD up - P1 and P2 ports.
-wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
 
-assign joystick_0 = joy_ll_a;
-assign joystick_1 = joy_ll_b;
-assign joystick_2 = joy_usb_0;
-assign joystick_3 = joy_usb_1;
-        
+// Player / LLAPI port allocation
+always_comb begin
+        if (~use_llapi & use_llapi2)  begin
+               	joystick_0 = joy_ll_b;
+                joystick_1 = joy_usb_0;
+                joystick_2 = joy_usb_1;
+                joystick_3 = joy_usb_2;
+                joystick_4 = joy_usb_3;
+        end else begin
+                joystick_0 = joy_ll_a;
+                joystick_1 = joy_ll_b;
+                joystick_2 = joy_usb_0;
+                joystick_3 = joy_usb_1;
+                joystick_4 = joy_usb_2;
+		end
+end
 
 //////////////////  END LLAPI   ///////////////////
 
