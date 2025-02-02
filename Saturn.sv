@@ -349,10 +349,10 @@ module emu
 	wire [63:0] status;
 	wire  [1:0] buttons;
 	//LLAPI rename HPS controller to USB
-	wire [12:0] joy_usb_0;
-	wire [12:0] joy_usb_1;
-	wire [12:0] joy_usb_2;
-	wire [12:0] joy_usb_3;
+	wire [13:0] joy_usb_0;
+	wire [13:0] joy_usb_1;
+	wire [13:0] joy_usb_2;
+	wire [13:0] joy_usb_3;
 	
 	wire [7:0] joystick_usb_analog_lx0;
 	wire [7:0] joystick_usb_analog_ly0;
@@ -1076,8 +1076,8 @@ wire [71:0] llapi_analog, llapi_analog2;
 wire [7:0]  llapi_type, llapi_type2;
 wire llapi_en, llapi_en2;
 wire llapi_latch_o, llapi_latch_o2, llapi_data_o, llapi_data_o2;
-wire [11:0] joy_ll_a;
-wire [11:0] joy_ll_b;
+wire [13:0] joy_ll_a;
+wire [13:0] joy_ll_b;
 
 //Assign (DOWN + START + FIRST BUTTON) Combinaison to bring the OSD up - P1 and P2 ports.
 wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
@@ -1146,7 +1146,7 @@ always_comb begin
 	//Saturn 3D controller
 	if (llapi_type == 8 ) begin
 		joy_ll_a = {
-			1'b0,  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // L Z Y X
+			1'b0, 1'b0,  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // COIN L Z Y X
 		    1'b0,  llapi_buttons[5], // R Start
 			llapi_buttons[7],  llapi_buttons[1],  llapi_buttons[0], // C B A
 			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
@@ -1162,7 +1162,7 @@ always_comb begin
 
 	end else begin
 		joy_ll_a = {
-			llapi_buttons[8],  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // L Z Y X
+			1'b0, llapi_buttons[8],  llapi_buttons[6],  llapi_buttons[3], llapi_buttons[2], // COIN L Z Y X
 		    llapi_buttons[9],  llapi_buttons[5], // R Start
 			llapi_buttons[7],  llapi_buttons[1],  llapi_buttons[0], // C B A
 			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
@@ -1184,7 +1184,7 @@ always_comb begin
 	//Saturn 3D controller
 	if (llapi_type2 == 8 ) begin
 		joy_ll_b = {
-			1'b0,  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // L Z Y X
+			1'b0, 1'b0,  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // COIN L Z Y X
 		    1'b0,  llapi_buttons2[5], // R Start
 			llapi_buttons2[7],  llapi_buttons2[1],  llapi_buttons2[0], // C B A
 			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
@@ -1200,7 +1200,7 @@ always_comb begin
 
 	end else begin
 		joy_ll_b = {
-			llapi_buttons2[8],  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // L Z Y X
+			1'b0, llapi_buttons2[8],  llapi_buttons2[6],  llapi_buttons2[3], llapi_buttons2[2], // COIN L Z Y X
 		    llapi_buttons2[9],  llapi_buttons2[5], // R Start
 			llapi_buttons2[7],  llapi_buttons2[1],  llapi_buttons2[0], // C B A
 			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
