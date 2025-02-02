@@ -340,9 +340,9 @@ module emu
 
 		"-;",
 		"R0,Reset;",
-		"J1,A,B,C,Start,R,X,Y,Z,L;",
-		"jn,A,B,R,Start,Select,X,Y,L;", 
-		"jp,Y,B,A,Start,Select,L,X,R;",
+		"J1,A,B,C,Start,R,X,Y,Z,L,Coin;",
+//		"jn,A,B,R,Start,Select,X,Y,L;", 
+//		"jp,Y,B,A,Start,Select,L,X,R;",
 		"V,v",`BUILD_DATE
 	};
 
@@ -359,7 +359,7 @@ module emu
 	wire [7:0] joystick_usb_analog_lx1;
 	wire [7:0] joystick_usb_analog_ly1;
 						 
-	wire [12:0] joystick_0,joystick_1,joystick_2,joystick_3,joystick_4;
+	wire [13:0] joystick_0,joystick_1,joystick_2,joystick_3,joystick_4;
 	wire  [7:0] joy0_x0,joy0_y0,joy0_x1,joy0_y1,joy1_x0,joy1_y0,joy1_x1,joy1_y1,joy0_z1,joy0_z2,joy1_z1,joy1_z2;
 	//END LLAPI		
 	wire        ioctl_download;
@@ -617,6 +617,7 @@ module emu
 							  ~joystick_0[8], ~joystick_0[9], ~joystick_0[10], ~joystick_0[11], ~joystick_0[12], 3'b111};
 	wire [15:0] joy2 = {~joystick_1[0]|joystick_1[1], ~joystick_1[1]|joystick_1[0], ~joystick_1[2]|joystick_1[3], ~joystick_1[3]|joystick_1[2], ~joystick_1[7], ~joystick_1[4], ~joystick_1[6], ~joystick_1[5],
 							  ~joystick_1[8], ~joystick_1[9], ~joystick_1[10], ~joystick_1[11], ~joystick_1[12], 3'b111};
+	wire        coin1 = ~joystick_0[13];
 
 	//LLAPI
 	//wire snac = status[27];
@@ -946,7 +947,8 @@ module emu
 		.RW_N(MEM_DQM_N[0]),
 		
 		.JOY1(joy1),
-		.JOY2(joy2)
+		.JOY2(joy2),
+		.COIN1(coin1)
 	);
 	
 	//LLAPI
