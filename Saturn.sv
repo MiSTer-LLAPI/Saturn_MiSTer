@@ -858,19 +858,18 @@ module emu
 		.SCSP_RAM_Q(SCSP_RAM_Q),
 		.SCSP_RAM_RFS(SCSP_RAM_RFS),
 		.SCSP_RAM_RDY(SCSP_RAM_RDY),
-		
+	
 		.SMPC_CE(SMPC_CE),
 		.TIME_SET(~status[32]),
 		.RTC(RTC),
 		.SMPC_AREA(area_code),
 		.SMPC_DOTSEL(SMPC_DOTSEL),
-		 //LLAPI
-		.SMPC_PDR1I(SMPC_PDR1I),
-		//.SMPC_PDR1I(snac ? USERJOYSTICK : SMPC_PDR1I),
-		//ENDLLAPI
+		//LLAPI
+		.SMPC_PDR1I(cart_type == 3'd5 ? 7'h5C : SMPC_PDR1I),
+	    //END LLAPI
 		.SMPC_PDR1O(SMPC_PDR1O),
 		.SMPC_DDR1(SMPC_DDR1),
-		.SMPC_PDR2I(SMPC_PDR2I),
+		.SMPC_PDR2I(cart_type == 3'd5 ? {6'b111111,STV_EEP_DO} : SMPC_PDR2I),
 		.SMPC_PDR2O(SMPC_PDR2O),
 		.SMPC_DDR2(SMPC_DDR2),
 		
@@ -949,6 +948,23 @@ module emu
 		.JOY1(joy1),
 		.JOY2(joy2),
 		.COIN1(coin1)
+	);
+	
+	wire        STV_EEP_DO;
+	E93C45 #("rtl/stv_eeprom.mif") STV_EEP 
+	(
+		.CLK(clk_sys),
+		.RST_N(~rst_sys),
+		
+		.DI(SMPC_PDR1O[4] & SMPC_DDR1[4]),
+		.DO(STV_EEP_DO),
+		.CS(SMPC_PDR1O[2] & SMPC_DDR1[2]),
+		.SK(SMPC_PDR1O[3] & SMPC_DDR1[3]),
+		
+		.MEM_A('0),
+		.MEM_DI('0),
+		.MEM_WREN(0),
+		.MEM_DO()
 	);
 	
 	//LLAPI
