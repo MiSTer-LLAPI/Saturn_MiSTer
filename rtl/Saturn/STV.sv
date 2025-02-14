@@ -31,7 +31,7 @@ module STV (
 	assign IN[7] = 8'hFF;
 	
 	bit  [ 7: 0] REG_DO;
-	always @(posedge CLK or negedge RST_N) begin
+	/*always @(posedge CLK or negedge RST_N) begin
 		bit        RW_N_OLD;
 		bit        CS_N_OLD;
 		
@@ -74,7 +74,7 @@ module STV (
 				endcase
 			end
 		end
-	end
+	end*/
 	assign DO = REG_DO;
 	
 endmodule

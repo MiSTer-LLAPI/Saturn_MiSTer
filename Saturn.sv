@@ -251,11 +251,20 @@ module emu
 		"-,>> Connect USER I/O port <<;",
 		"-;",
 		//END LLAPI	
-		"S0,CUECHD,Insert Disk;",
+		"S0,CUECHD,Insert disc;",
 		"FS2,BIN,Load bios;",
 		"FS3,BIN,Load cartridge;",
+		//LLAPIsupport note
+		"-;",
+		"P5,LLAPI notes;",
+		"P5-;",
+		"P5-,No STV and Lightgun support;",
+		"P5-,This is due to FPGA space;",
+		"P5-;",
+		"P5-,3D controller supported;",
+		//END LLAPI
 		"-;",				
-		"OLN,Cartridge,None,ROM 2M,DRAM 1M,DRAM 4M,BACKUP,STV;",
+		"OLN,Cartridge,None,ROM 2M,DRAM 1M,DRAM 4M,BACKUP;", //LLAPI : removed STV support to free space
 		"o13,Region,Japan,Taiwan,USA,Brazil,Korea,Asia,Europe,Auto;",
 		"-;",
 		"D0RO,Load Backup RAM;",
