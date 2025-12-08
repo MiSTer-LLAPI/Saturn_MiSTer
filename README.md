@@ -1,5 +1,13 @@
 # [Sega Saturn](https://en.wikipedia.org/wiki/Sega_Saturn) for MiSTer
 
+## LLAPI notes
+
+Limitations due to FPGA space:		
+- Lightgun not supported
+- Mouse not supported
+
+3D controller is supported.
+
 ## Hardware Requirements
 
 - 128 MB SDRAM Module (Primary)
