@@ -10,6 +10,8 @@ Limitations due to FPGA space:
 - Steering wheel not supported
 - Dual Mission not supported
 
+rtl/hps2pad.sv has been modified to remove support for the above controllers and make the LLAPI implementation fit in the core.
+
 ## Hardware Requirements
 
 - 128 MB SDRAM Module (Primary)
