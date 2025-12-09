@@ -2,7 +2,7 @@
 
 ## LLAPI notes
 
-OG Digital and 3D controller are supported.
+OG Digital and 3D controllers are supported.
 
 Limitations due to FPGA space:		
 - Lightgun not supported
