@@ -2,11 +2,13 @@
 
 ## LLAPI notes
 
+OG Digital and 3D controller are supported.
+
 Limitations due to FPGA space:		
 - Lightgun not supported
 - Mouse not supported
-
-3D controller is supported.
+- Steering wheel not supported
+- Dual Mission not supported
 
 ## Hardware Requirements
 
