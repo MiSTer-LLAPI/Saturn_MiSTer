@@ -2,11 +2,15 @@
 
 ## LLAPI notes
 
+OG Digital and 3D controllers are supported.
+
 Limitations due to FPGA space:		
 - Lightgun not supported
 - Mouse not supported
+- Steering wheel not supported
+- Dual Mission not supported
 
-3D controller is supported.
+files.qip and rtl/hps2pad.sv have been modified to remove support for the above controllers and make the LLAPI implementation fit in the core.
 
 ## Hardware Requirements
 
