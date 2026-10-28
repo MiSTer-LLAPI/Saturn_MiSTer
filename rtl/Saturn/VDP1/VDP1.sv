@@ -156,12 +156,6 @@ module VDP1 (
 		CMDS_GRD_CALC_ROW,
 		CMDS_GRD_CALC_LINE,
 		CMDS_ROW_DRAW,
-		CMDS_NSPR_START,
-		CMDS_SSPR_START,
-		CMDS_DSPR_START,
-		CMDS_POLYGON_START,
-		CMDS_POLYLINE_START,
-		CMDS_LINE_START,
 		CMDS_EDGE_INIT,
 		CMDS_LINE_INIT,
 		CMDS_PRE_DRAW,CMDS_PRE_DRAW2,
@@ -252,8 +246,8 @@ module VDP1 (
 	bit  [11: 0] GRD_CALC_S;
 	RGB_t        GRD_CALC_1,GRD_CALC_2;
 	
-	wire [ 8: 0] ORIG_WIDTH = {CMD.CMDSIZE.SX,3'b000} | ~|CMD.CMDSIZE.SX;
-	wire [ 7: 0] ORIG_HEIGHT = {CMD.CMDSIZE.SY} | ~|CMD.CMDSIZE.SY;
+	bit  [ 8: 0] ORIG_WIDTH;
+	bit  [ 7: 0] ORIG_HEIGHT;
 	wire         TEXT_DIRX = (CMD.CMDCTRL.DIR[0] ^ DIR[0]);
 	wire         TEXT_DIRY = (CMD.CMDCTRL.DIR[1] ^ DIR[1]);
 	wire         IS_PAT_EC = (CMD.CMDCTRL.COMM <= 4'h3 && !CMD.CMDPMOD.ECD && PAT.EC && !HSS_EN);
@@ -472,6 +466,8 @@ module VDP1 (
 		bit         CLIP_H;
 		RGBFP_t     GRD_CALC_STEP;
 		bit         GRD_CALC_DIR_R,GRD_CALC_DIR_G,GRD_CALC_DIR_B;
+		bit [ 1: 0] SYS_CLIP_STATE;
+		bit [12: 0] SYS_CLIP_A,SYS_CLIP_B,SYS_CLIP_RES;
 		bit [12: 0] SYS_CLIP_X1,SYS_CLIP_X2,SYS_CLIP_Y1,SYS_CLIP_Y2;
 		bit [12: 0] LINE_DIFF_LEFT_CLIPX1,LINE_DIFF_LEFT_CLIPX2,LINE_DIFF_RIGHT_CLIPX1,LINE_DIFF_RIGHT_CLIPX2;
 		bit         LINE_EQ_LEFT_CLIPX1,LINE_EQ_LEFT_CLIPX2,LINE_EQ_RIGHT_CLIPX1,LINE_EQ_RIGHT_CLIPX2;
@@ -490,9 +486,6 @@ module VDP1 (
 			SPR_READ <= 0;
 			CLT_READ <= 0;
 			GRD_READ <= 0;
-			SYS_CLIP <= CLIP_NULL;
-			USR_CLIP <= CLIP_NULL;
-			LOC_COORD <= COORD_NULL;
 			CMD_SUB_RUN <= 0;
 			
 `ifdef DEBUG
@@ -516,18 +509,37 @@ module VDP1 (
 			CMD_ST <= CMDS_IDLE;
 		end else if (EN) begin
 			SPR_OFFSY_NEXT = TEXT_DIRY ? SPR_OFFSY - ORIG_WIDTH[8:3] : SPR_OFFSY + ORIG_WIDTH[8:3];
-		
-			SYS_CLIP_X1 <= 13'd0 - $signed({{1{LOC_COORD.X[10]}},LOC_COORD.X});
-			SYS_CLIP_Y1 <= 13'd0 - $signed({{1{LOC_COORD.Y[10]}},LOC_COORD.Y});
-			SYS_CLIP_X2 <= $signed({{2{SYS_CLIP.X2[10]}},SYS_CLIP.X2}) - $signed({{1{LOC_COORD.X[10]}},LOC_COORD.X});
-			SYS_CLIP_Y2 <= $signed({{2{SYS_CLIP.Y2[10]}},SYS_CLIP.Y2}) - $signed({{1{LOC_COORD.Y[10]}},LOC_COORD.Y});
 			
 			if (CMD.CMDPMOD.CLIP && !CMD.CMDPMOD.CMOD) begin
-				SYS_CLIP_X1 <= $signed({{2{USR_CLIP.X1[10]}},USR_CLIP.X1}) - $signed({{1{LOC_COORD.X[10]}},LOC_COORD.X});
-				SYS_CLIP_Y1 <= $signed({{2{USR_CLIP.Y1[10]}},USR_CLIP.Y1}) - $signed({{1{LOC_COORD.Y[10]}},LOC_COORD.Y});
-				SYS_CLIP_X2 <= $signed({{2{USR_CLIP.X2[10]}},USR_CLIP.X2}) - $signed({{1{LOC_COORD.X[10]}},LOC_COORD.X});
-				SYS_CLIP_Y2 <= $signed({{2{USR_CLIP.Y2[10]}},USR_CLIP.Y2}) - $signed({{1{LOC_COORD.Y[10]}},LOC_COORD.Y});
+				case (SYS_CLIP_STATE)
+					2'd0: SYS_CLIP_A = {{2{USR_CLIP.X1[10]}},USR_CLIP.X1};
+					2'd1: SYS_CLIP_A = {{2{USR_CLIP.Y1[10]}},USR_CLIP.Y1};
+					2'd2: SYS_CLIP_A = {{2{USR_CLIP.X2[10]}},USR_CLIP.X2};
+					2'd3: SYS_CLIP_A = {{2{USR_CLIP.Y2[10]}},USR_CLIP.Y2};
+				endcase
+			end else begin
+				case (SYS_CLIP_STATE)
+					2'd0: SYS_CLIP_A = 13'd0;
+					2'd1: SYS_CLIP_A = 13'd0;
+					2'd2: SYS_CLIP_A = {{2{SYS_CLIP.X2[10]}},SYS_CLIP.X2};
+					2'd3: SYS_CLIP_A = {{2{SYS_CLIP.Y2[10]}},SYS_CLIP.Y2};
+				endcase
 			end
+			case (SYS_CLIP_STATE)
+				2'd0: SYS_CLIP_B = {{1{LOC_COORD.X[10]}},LOC_COORD.X};
+				2'd1: SYS_CLIP_B = {{1{LOC_COORD.Y[10]}},LOC_COORD.Y};
+				2'd2: SYS_CLIP_B = {{1{LOC_COORD.X[10]}},LOC_COORD.X};
+				2'd3: SYS_CLIP_B = {{1{LOC_COORD.Y[10]}},LOC_COORD.Y};
+			endcase
+				
+			SYS_CLIP_RES = $signed(SYS_CLIP_A) - $signed(SYS_CLIP_B);
+			case (SYS_CLIP_STATE)
+				2'd0: SYS_CLIP_X1 <= SYS_CLIP_RES;
+				2'd1: SYS_CLIP_Y1 <= SYS_CLIP_RES;
+				2'd2: SYS_CLIP_X2 <= SYS_CLIP_RES;
+				2'd3: SYS_CLIP_Y2 <= SYS_CLIP_RES;
+			endcase
+			SYS_CLIP_STATE <= SYS_CLIP_STATE + 2'd1;
 			
 			LINE_DIFF_LEFT_CLIPX1 = $signed(LEFT_VERT.X) - $signed(SYS_CLIP_X1);
 			LINE_DIFF_LEFT_CLIPX2 = $signed(LEFT_VERT.X) - $signed(SYS_CLIP_X2);
@@ -732,26 +744,17 @@ module VDP1 (
 							
 							4'h8,
 							4'hB: begin	
-								USR_CLIP.X1 <= {1'b0,CMD.CMDXA[9:0]}; 
-								USR_CLIP.Y1 <= {1'b0,CMD.CMDYA[9:0]}; 
-								USR_CLIP.X2 <= {1'b0,CMD.CMDXC[9:0]};
-								USR_CLIP.Y2 <= {1'b0,CMD.CMDYC[9:0]};
+								SYS_CLIP_STATE <= '0;
 								CMD_ST <= CMDS_END;
 							end
 							
 							4'h9: begin	
-								SYS_CLIP.X2 <= {1'b0,CMD.CMDXC[9:0]};
-								SYS_CLIP.Y2 <= {1'b0,CMD.CMDYC[9:0]};
-								//TODO: check on original hw
-								USR_CLIP.X2 <= {1'b0,CMD.CMDXC[9:0]};
-								USR_CLIP.Y2 <= {1'b0,CMD.CMDYC[9:0]};
-								//
+								SYS_CLIP_STATE <= '0;
 								CMD_ST <= CMDS_END;
 							end
 							
 							4'hA: begin	
-								LOC_COORD.X <= CMD.CMDXA[11:0]; 
-								LOC_COORD.Y <= CMD.CMDYA[11:0];
+								SYS_CLIP_STATE <= '0;
 								CMD_ST <= CMDS_END;
 							end
 								
@@ -777,107 +780,17 @@ module VDP1 (
 					CMD_DELAY <= CMD_DELAY - 1'd1;
 					if (!CMD_DELAY) begin
 						case (CMD.CMDCTRL.COMM) 
-							4'h0: CMD_ST <= CMDS_NSPR_START;
-							4'h1: CMD_ST <= CMDS_SSPR_START;
+							4'h0: CMD_ST <= CMDS_EDGE_INIT;
+							4'h1: CMD_ST <= CMDS_EDGE_INIT;
 							4'h2,
-							4'h3: CMD_ST <= CMDS_DSPR_START;
-							4'h4: CMD_ST <= CMDS_POLYGON_START;							
+							4'h3: CMD_ST <= CMDS_EDGE_INIT;
+							4'h4: CMD_ST <= CMDS_EDGE_INIT;							
 							4'h5,
-							4'h7: CMD_ST <= CMDS_POLYLINE_START;							
-							4'h6: CMD_ST <= CMDS_LINE_START;
+							4'h7: CMD_ST <= CMDS_LINE_INIT;							
+							4'h6: CMD_ST <= CMDS_LINE_INIT;
 						endcase
 						CMD_DELAY <= 9'd8;
 					end
-				end
-				
-				CMDS_NSPR_START: begin
-					VERTA.X <= CMD.CMDXA[12:0];
-					VERTB.X <= CMD.CMDXA[12:0] + ORIG_WIDTH - 13'd1;
-					VERTC.X <= CMD.CMDXA[12:0] + ORIG_WIDTH - 13'd1;
-					VERTD.X <= CMD.CMDXA[12:0];
-					VERTA.Y <= CMD.CMDYA[12:0];
-					VERTB.Y <= CMD.CMDYA[12:0];
-					VERTC.Y <= CMD.CMDYA[12:0] + ORIG_HEIGHT - 13'd1;
-					VERTD.Y <= CMD.CMDYA[12:0] + ORIG_HEIGHT - 13'd1;
-					
-					CMD_ST <= CMDS_EDGE_INIT;
-				end
-				
-				CMDS_SSPR_START: begin
-					case (CMD.CMDCTRL.ZP[1:0])
-						2'b00: begin 
-							VERTA.X <= CMD.CMDXA[12:0];
-							VERTB.X <= CMD.CMDXC[12:0];
-							VERTC.X <= CMD.CMDXC[12:0];
-							VERTD.X <= CMD.CMDXA[12:0];
-						end
-						2'b01: begin 
-							VERTA.X <= CMD.CMDXA[12:0];
-							VERTB.X <= CMD.CMDXA[12:0] + CMD.CMDXB[12:0];
-							VERTC.X <= CMD.CMDXA[12:0] + CMD.CMDXB[12:0];
-							VERTD.X <= CMD.CMDXA[12:0];
-						end
-						2'b10: begin 
-							VERTA.X <= CMD.CMDXA[12:0] - SDiv2(CMD.CMDXB[12:0]);
-							VERTB.X <= CMD.CMDXA[12:0] + SDiv2(CMD.CMDXB[12:0] + 13'd1);
-							VERTC.X <= CMD.CMDXA[12:0] + SDiv2(CMD.CMDXB[12:0] + 13'd1);
-							VERTD.X <= CMD.CMDXA[12:0] - SDiv2(CMD.CMDXB[12:0]);
-						end
-						2'b11: begin 
-							VERTA.X <= CMD.CMDXA[12:0] - CMD.CMDXB[12:0];
-							VERTB.X <= CMD.CMDXA[12:0];
-							VERTC.X <= CMD.CMDXA[12:0];
-							VERTD.X <= CMD.CMDXA[12:0] - CMD.CMDXB[12:0];
-						end
-					endcase
-					case (CMD.CMDCTRL.ZP[3:2])
-						2'b00: begin 
-							VERTA.Y <= CMD.CMDYA[12:0];
-							VERTB.Y <= CMD.CMDYA[12:0];
-							VERTC.Y <= CMD.CMDYC[12:0];
-							VERTD.Y <= CMD.CMDYC[12:0];
-						end
-						2'b01: begin 
-							VERTA.Y <= CMD.CMDYA[12:0];
-							VERTB.Y <= CMD.CMDYA[12:0];
-							VERTC.Y <= CMD.CMDYA[12:0] + CMD.CMDYB[12:0];
-							VERTD.Y <= CMD.CMDYA[12:0] + CMD.CMDYB[12:0];
-						end
-						2'b10: begin 
-							VERTA.Y <= CMD.CMDYA[12:0] - SDiv2(CMD.CMDYB[12:0]);
-							VERTB.Y <= CMD.CMDYA[12:0] - SDiv2(CMD.CMDYB[12:0]);
-							VERTC.Y <= CMD.CMDYA[12:0] + SDiv2(CMD.CMDYB[12:0] + 13'd1);
-							VERTD.Y <= CMD.CMDYA[12:0] + SDiv2(CMD.CMDYB[12:0] + 13'd1);
-						end
-						2'b11: begin 
-							VERTA.Y <= CMD.CMDYA[12:0] - CMD.CMDYB[12:0];
-							VERTB.Y <= CMD.CMDYA[12:0] - CMD.CMDYB[12:0];
-							VERTC.Y <= CMD.CMDYA[12:0];
-							VERTD.Y <= CMD.CMDYA[12:0];
-						end
-					endcase
-					
-					CMD_ST <= CMDS_EDGE_INIT;
-				end
-				
-				CMDS_DSPR_START,
-				CMDS_POLYGON_START: begin
-					VERTA <= {CMD.CMDXA[12:0],CMD.CMDYA[12:0]};
-					VERTB <= {CMD.CMDXB[12:0],CMD.CMDYB[12:0]};
-					VERTC <= {CMD.CMDXC[12:0],CMD.CMDYC[12:0]};
-					VERTD <= {CMD.CMDXD[12:0],CMD.CMDYD[12:0]};
-							
-					CMD_ST <= CMDS_EDGE_INIT;
-				end
-				
-				CMDS_POLYLINE_START,
-				CMDS_LINE_START: begin
-					VERTA <= {CMD.CMDXA[12:0],CMD.CMDYA[12:0]};
-					VERTB <= {CMD.CMDXB[12:0],CMD.CMDYB[12:0]};
-					VERTC <= {CMD.CMDXC[12:0],CMD.CMDYC[12:0]};
-					VERTD <= {CMD.CMDXD[12:0],CMD.CMDYD[12:0]};
-					
-					CMD_ST <= CMDS_LINE_INIT;
 				end
 				
 				CMDS_EDGE_INIT: begin
@@ -1518,11 +1431,11 @@ module VDP1 (
 				end
 				
 				CMDS_ROW_CLIP: begin
-					CMD_DELAY <= CMD_DELAY - 9'd1;
-					if (!CMD_DELAY || PENALTY_CNT >= CMD_DELAY) begin
-						CMD_DELAY <= 9'd8;
+//					CMD_DELAY <= CMD_DELAY - 9'd1;
+//					if (!CMD_DELAY || PENALTY_CNT >= CMD_DELAY) begin
+//						CMD_DELAY <= 9'd8;
 						CMD_ST <= CMDS_ROW_DRAW;
-					end
+//					end
 				end
 				
 				CMDS_END: begin
@@ -1584,6 +1497,8 @@ module VDP1 (
 	bit          FB_READ_PEND;
 	bit          PAT_NEXT;
 	always @(posedge CLK or negedge RST_N) begin
+		bit  [11: 0] DRAW_X_NEW,DRAW_Y_NEW;
+		bit          DI_NOT_DRAW,MESH_NOT_DRAW;
 		bit  [ 1: 0] RAS_DELAY;
 		bit          FBD_RAS;
 		
@@ -1604,19 +1519,25 @@ module VDP1 (
 					end else if (SPR_DATA_READY || CMD.CMDCTRL.COMM >= 4'h4) begin
 						if ((CMD_ST == CMDS_NSPR_DRAW || CMD_ST == CMDS_SSPR_DRAW || CMD_ST == CMDS_LINE_DRAW || CMD_ST == CMDS_AA_DRAW || CMD_ST == CMDS_LINE_END)) begin
 							if ((CMD_ST == CMDS_AA_DRAW || CMD_ST == CMDS_LINE_END)) begin
-								DRAW_X <= LOC_COORD.X + AA_X;
-								DRAW_Y <= LOC_COORD.Y + AA_Y;
+								DRAW_X_NEW = LOC_COORD.X + AA_X;
+								DRAW_Y_NEW = LOC_COORD.Y + AA_Y;
 							end else begin
 								if (LINE_AA_STEP && LINE_S) begin
-									DRAW_X <= LOC_COORD.X + LINE_VERTA.X + {{11{LINE_DIRX}},1'b1};
+									DRAW_X_NEW = LOC_COORD.X + LINE_VERTA.X + {{11{LINE_DIRX}},1'b1};
 								end else begin
-									DRAW_X <= LOC_COORD.X + LINE_VERTA.X;
+									DRAW_X_NEW = LOC_COORD.X + LINE_VERTA.X;
 								end
 								if (LINE_AA_STEP && !LINE_S) begin
-									DRAW_Y <= LOC_COORD.Y + LINE_VERTA.Y + {{11{LINE_DIRY}},1'b1};
+									DRAW_Y_NEW = LOC_COORD.Y + LINE_VERTA.Y + {{11{LINE_DIRY}},1'b1};
 								end else begin
-									DRAW_Y <= LOC_COORD.Y + LINE_VERTA.Y;
+									DRAW_Y_NEW = LOC_COORD.Y + LINE_VERTA.Y;
 								end
+							end
+							DRAW_X <= DRAW_X_NEW;
+							DRAW_Y <= DRAW_Y_NEW;
+							if ((CMD_ST == CMDS_AA_DRAW || CMD_ST == CMDS_LINE_END)) begin
+								
+							end else begin
 								if (!(TEXT_X_READ_STEP && EC_FIND && IS_PAT_EC)) begin
 									DRAW_PAT <= PAT;
 									DRAW_GHCOLOR <= RGBFtoI(LINE_GHCOLOR);
@@ -1624,8 +1545,9 @@ module VDP1 (
 								FBD_RAS <= LINE_DRAW_STEP && (CMD.CMDCTRL.COMM <= 4'h1) && &LINE_VERTA.X[3:0];
 							end
 							
-							
-							if (LINE_DRAW_STEP && !IS_PAT_EC) begin
+							DI_NOT_DRAW = DIE & (DIL ^ DRAW_Y_NEW[0]);
+							MESH_NOT_DRAW = CMD.CMDPMOD.MESH & ((DRAW_X_NEW[0] ^ DRAW_Y_NEW[0]) ^ (FRAME_ODD&BLUR_MESH));
+							if (LINE_DRAW_STEP && !IS_PAT_EC && !DI_NOT_DRAW && !MESH_NOT_DRAW) begin
 								if (CMD.CMDPMOD.CCB[0] || CMD.CMDPMOD.MON) begin
 									FB_READ_PEND <= 1;
 									FBD_ST <= FBDS_READ;
@@ -1714,8 +1636,6 @@ module VDP1 (
 	always_comb begin
 		bit [15: 0] CALC_C;
 		bit         EC;
-		bit         MESH;
-		bit         IDRAW;
 		
 		if (!CMD.CMDCTRL.COMM[2]) begin
 			case (CMD.CMDPMOD.CM)
@@ -1733,14 +1653,12 @@ module VDP1 (
 			TP = 0;
 			EC = 0;
 		end
-		CALC_C = CMD.CMDPMOD.MON ? {1'b1,DRAW_BACK_C[14:0]} : !TVMR.TVM[0] ? ColorCalc(ORIG_C, DRAW_BACK_C, DRAW_GHCOLOR, CMD.CMDPMOD.CCB) : ORIG_C;
+		CALC_C = CMD.CMDPMOD.MON ? DRAW_BACK_C : !TVMR.TVM[0] ? ColorCalc(ORIG_C, DRAW_BACK_C, DRAW_GHCOLOR, CMD.CMDPMOD.CCB) : ORIG_C;
 			
 		SCLIP = !DRAW_X[11:10]                                    && DRAW_X[9:0] <= SYS_CLIP.X2[9:0] && !DRAW_Y[11:10]                                    && DRAW_Y[9:0] <= SYS_CLIP.Y2[9:0];
 		UCLIP = !DRAW_X[11:10] && DRAW_X[9:0] >= USR_CLIP.X1[9:0] && DRAW_X[9:0] <= USR_CLIP.X2[9:0] && !DRAW_Y[11:10] && DRAW_Y[9:0] >= USR_CLIP.Y1[9:0] && DRAW_Y[9:0] <= USR_CLIP.Y2[9:0];
-		MESH = ~(DRAW_X[0] ^ DRAW_Y[0]) ^ (FRAME_ODD&BLUR_MESH);
-		IDRAW = ~(DIL ^ DRAW_Y[0]);
 		FB_DRAW_D = CALC_C;
-		FB_DRAW_WE = (~TP | CMD.CMDPMOD.SPD) & (~EC | CMD.CMDPMOD.ECD) & SCLIP & ((UCLIP^CMD.CMDPMOD.CMOD) | ~CMD.CMDPMOD.CLIP) & (MESH | ~CMD.CMDPMOD.MESH) & (IDRAW | ~DIE);
+		FB_DRAW_WE = (~TP | CMD.CMDPMOD.SPD) & (~EC | CMD.CMDPMOD.ECD) & SCLIP & ((UCLIP^CMD.CMDPMOD.CMOD) | ~CMD.CMDPMOD.CLIP);
 	end
 `ifdef DEBUG
 	assign ORIG_C_DBG = ORIG_C;
@@ -2305,20 +2223,20 @@ module VDP1 (
 						casex (TVMR.TVM[1:0]) 
 							2'bx0: begin
 								FB_A <= {FB_Y[7:0],DRAW_X[8:0]};
-								FB_D <= FB_DRAW_D;
+								FB_D <= FB_DRAW_D | {CMD.CMDPMOD.MON,15'h0000};
 								FB_WE <= {2{FB_DRAW_PEND}};
 								FB_RD <= FB_READ_PEND;
 							end
 							2'b01: begin
 								FB_A <= {FB_Y[7:0],DRAW_X[9:1]};
-								FB_D <= {FB_DRAW_D[7:0],FB_DRAW_D[7:0]};
-								FB_WE <= {~DRAW_X[0],DRAW_X[0]} & {2{FB_DRAW_PEND}};
+								FB_D <= {FB_DRAW_D[7:0],FB_DRAW_D[7:0]} | {CMD.CMDPMOD.MON,15'h0000};
+								FB_WE <= ({~DRAW_X[0],DRAW_X[0]} | {2{CMD.CMDPMOD.MON}}) & {2{FB_DRAW_PEND}};
 								FB_RD <= FB_READ_PEND;
 							end
 							2'b11: begin
 								FB_A <= {FB_Y[8:0],DRAW_X[8:1]};
-								FB_D <= {FB_DRAW_D[7:0],FB_DRAW_D[7:0]};
-								FB_WE <= {~DRAW_X[0],DRAW_X[0]} & {2{FB_DRAW_PEND}};
+								FB_D <= {FB_DRAW_D[7:0],FB_DRAW_D[7:0]} | {CMD.CMDPMOD.MON,15'h0000};
+								FB_WE <= ({~DRAW_X[0],DRAW_X[0]} | {2{CMD.CMDPMOD.MON}}) & {2{FB_DRAW_PEND}};
 								FB_RD <= FB_READ_PEND;
 							end
 						endcase
@@ -2360,11 +2278,15 @@ module VDP1 (
 	bit         CMD_WE,CLT_WE,GRD_WE;
 	always @(posedge CLK or negedge RST_N) begin
 		bit         CMD_WE,GRD_WE;
+		bit [12: 0] TEMP;
 		
 		if (!RST_N) begin
 			CMD_WE <= 0;
 			CLT_WE <= 0;
 			GRD_WE <= 0;
+			SYS_CLIP <= CLIP_NULL;
+			USR_CLIP <= CLIP_NULL;
+			LOC_COORD <= COORD_NULL;
 		end else begin
 			CMD_DAT <= VRAM_Q;
 			CMD_POS <= VRAM_READ_POS;
@@ -2376,16 +2298,250 @@ module VDP1 (
 					4'h2: CMD.CMDPMOD <= CMD_DAT;
 					4'h3: CMD.CMDCOLR <= CMD_DAT;
 					4'h4: CMD.CMDSRCA <= CMD_DAT;
-					4'h5: CMD.CMDSIZE <= CMD_DAT;
-					4'h6: CMD.CMDXA <= CMD_DAT;
-					4'h7: CMD.CMDYA <= CMD_DAT;
-					4'h8: CMD.CMDXB <= CMD_DAT;
-					4'h9: CMD.CMDYB <= CMD_DAT;
-					4'hA: CMD.CMDXC <= CMD_DAT;
-					4'hB: CMD.CMDYC <= CMD_DAT;
-					4'hC: CMD.CMDXD <= CMD_DAT;
-					4'hD: CMD.CMDYD <= CMD_DAT;
+//					4'h5: CMD.CMDSIZE <= CMD_DAT;
+//					4'h6: CMD.CMDXA <= CMD_DAT;
+//					4'h7: CMD.CMDYA <= CMD_DAT;
+//					4'h8: CMD.CMDXB <= CMD_DAT;
+//					4'h9: CMD.CMDYB <= CMD_DAT;
+//					4'hA: CMD.CMDXC <= CMD_DAT;
+//					4'hB: CMD.CMDYC <= CMD_DAT;
+//					4'hC: CMD.CMDXD <= CMD_DAT;
+//					4'hD: CMD.CMDYD <= CMD_DAT;
 					4'hE: CMD.CMDGRDA <= CMD_DAT;
+				endcase
+				
+				
+				case (CMD_POS)
+					4'h5: begin
+						ORIG_WIDTH <= {CMD_DAT[13:8],3'b000} | ~|CMD_DAT[13:8];
+						ORIG_HEIGHT <= CMD_DAT[7:0] | ~|CMD_DAT[7:0];
+					end
+					4'h6: begin
+						case (CMD.CMDCTRL.COMM)
+							4'h0: begin
+								TEMP = CMD_DAT[12:0] + ORIG_WIDTH - 13'd1;
+								VERTA.X <= CMD_DAT[12:0];
+								VERTB.X <= TEMP;
+								VERTC.X <= TEMP;
+								VERTD.X <= CMD_DAT[12:0];
+							end
+							4'h1: begin
+								VERTA.X <= CMD_DAT[12:0];
+								VERTB.X <= CMD_DAT[12:0];
+								VERTC.X <= CMD_DAT[12:0];
+								VERTD.X <= CMD_DAT[12:0];
+							end
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTA.X <= CMD_DAT[12:0];
+							end
+							4'h8,
+							4'hB: begin	
+								USR_CLIP.X1 <= {1'b0,CMD_DAT[9:0]}; 
+							end
+							4'h9: begin	
+							end
+							4'hA: begin	
+								LOC_COORD.X <= CMD_DAT[11:0]; 
+							end
+						endcase
+					end
+					4'h7: begin
+						case (CMD.CMDCTRL.COMM)
+							4'h0: begin
+								TEMP = CMD_DAT[12:0] + ORIG_HEIGHT - 13'd1;
+								VERTA.Y <= CMD_DAT[12:0];
+								VERTB.Y <= CMD_DAT[12:0];
+								VERTC.Y <= TEMP;
+								VERTD.Y <= TEMP;
+							end
+							4'h1: begin
+								VERTA.Y <= CMD_DAT[12:0];
+								VERTB.Y <= CMD_DAT[12:0];
+								VERTC.Y <= CMD_DAT[12:0];
+								VERTD.Y <= CMD_DAT[12:0];
+							end
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTA.Y <= CMD_DAT[12:0];
+							end
+							4'h8,
+							4'hB: begin	
+								USR_CLIP.Y1 <= {1'b0,CMD_DAT[9:0]}; 
+							end
+							4'h9: begin	
+							end
+							4'hA: begin	
+								LOC_COORD.Y <= CMD_DAT[11:0];
+							end
+						endcase
+					end
+					4'h8: begin
+						case (CMD.CMDCTRL.COMM)
+							4'h1: begin
+								case (CMD.CMDCTRL.ZP[1:0])
+									2'b00: begin 
+									end
+									2'b01: begin 
+										VERTB.X <= VERTA.X + CMD_DAT[12:0];
+										VERTC.X <= VERTA.X + CMD_DAT[12:0];
+									end
+									2'b10: begin 
+										VERTA.X <= VERTA.X - SDiv2(CMD_DAT[12:0]);
+										VERTB.X <= VERTA.X + SDiv2(CMD_DAT[12:0] + 13'd1);
+										VERTC.X <= VERTA.X + SDiv2(CMD_DAT[12:0] + 13'd1);
+										VERTD.X <= VERTA.X - SDiv2(CMD_DAT[12:0]);
+									end
+									2'b11: begin 
+										VERTA.X <= VERTA.X - CMD_DAT[12:0];
+										VERTD.X <= VERTA.X - CMD_DAT[12:0];
+									end
+								endcase
+							end							
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTB.X <= CMD_DAT[12:0];
+							end
+						endcase
+					end
+					4'h9: begin
+						case (CMD.CMDCTRL.COMM)
+							4'h1: begin
+								case (CMD.CMDCTRL.ZP[3:2])
+									2'b00: begin 
+									end
+									2'b01: begin 
+										VERTC.Y <= VERTA.Y + CMD_DAT[12:0];
+										VERTD.Y <= VERTA.Y + CMD_DAT[12:0];
+									end
+									2'b10: begin 
+										VERTA.Y <= VERTA.Y - SDiv2(CMD_DAT[12:0]);
+										VERTB.Y <= VERTA.Y - SDiv2(CMD_DAT[12:0]);
+										VERTC.Y <= VERTA.Y + SDiv2(CMD_DAT[12:0] + 13'd1);
+										VERTD.Y <= VERTA.Y + SDiv2(CMD_DAT[12:0] + 13'd1);
+									end
+									2'b11: begin 
+										VERTA.Y <= VERTA.Y - CMD_DAT[12:0];
+										VERTB.Y <= VERTA.Y - CMD_DAT[12:0];
+									end
+								endcase
+							end							
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTB.Y <= CMD_DAT[12:0];
+							end
+						endcase
+					end
+					4'hA: begin
+						case (CMD.CMDCTRL.COMM) 
+							4'h1: begin
+								case (CMD.CMDCTRL.ZP[1:0])
+									2'b00: begin 
+										VERTB.X <= CMD_DAT[12:0];
+										VERTC.X <= CMD_DAT[12:0];
+									end
+									2'b01: begin 
+									end
+									2'b10: begin 
+									end
+									2'b11: begin 
+									end
+								endcase
+							end
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTC.X <= CMD_DAT[12:0];
+							end
+							4'h8,
+							4'hB: begin	
+								USR_CLIP.X2 <= {1'b0,CMD_DAT[9:0]};
+							end
+							4'h9: begin	
+								SYS_CLIP.X2 <= {1'b0,CMD_DAT[9:0]};
+								USR_CLIP.X2 <= {1'b0,CMD_DAT[9:0]};
+							end
+						endcase
+					end
+					4'hB: begin
+						case (CMD.CMDCTRL.COMM) 
+							4'h1: begin
+								case (CMD.CMDCTRL.ZP[3:2])
+									2'b00: begin 
+										VERTC.Y <= CMD_DAT[12:0];
+										VERTD.Y <= CMD_DAT[12:0];
+									end
+									2'b01: begin 
+									end
+									2'b10: begin 
+									end
+									2'b11: begin 
+									end
+								endcase
+							end
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTC.Y <= CMD_DAT[12:0];
+							end
+							4'h8,
+							4'hB: begin	
+								USR_CLIP.Y2 <= {1'b0,CMD_DAT[9:0]};
+							end
+							4'h9: begin	
+								SYS_CLIP.Y2 <= {1'b0,CMD_DAT[9:0]};
+								USR_CLIP.Y2 <= {1'b0,CMD_DAT[9:0]};
+							end
+						endcase
+					end
+					4'hC: begin
+						case (CMD.CMDCTRL.COMM) 
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTD.X <= CMD_DAT[12:0];
+							end
+						endcase
+					end
+					4'hD: begin
+						case (CMD.CMDCTRL.COMM) 
+							4'h2,
+							4'h3,
+							4'h4,							
+							4'h5,
+							4'h7,						
+							4'h6: begin
+								VERTD.Y <= CMD_DAT[12:0];
+							end
+						endcase
+					end
+					4'hE: begin
+					end
 				endcase
 			end
 			

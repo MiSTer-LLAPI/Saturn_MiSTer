@@ -29,7 +29,7 @@ module SH7034_MULT (
 	
 	wire [31:0] SRES =   $signed(MA) *   $signed(MB);
 	wire [31:0] URES = $unsigned(MA) * $unsigned(MB);
-	wire [41:0] ACC  = {MACH,MACL} + {{10{SRES[31]}},SRES};
+	wire [41:0] ACC  = {MACH,MACL} + {{10{SRES[31]}},SRES[31:0]};
 	
 	always @(posedge CLK or negedge RST_N) begin
 		bit        MUL_EXEC;
@@ -74,8 +74,8 @@ module SH7034_MULT (
 					end
 					4'b1011: begin		//MAC.W
 						DW = !CBUS_A[1] ? CBUS_DI[31:16] : CBUS_DI[15:0];
-						if (MAC_SEL[0]) MA <= DW;
-						if (MAC_SEL[1]) MB <= DW;
+						if (MAC_SEL[1]) MA <= DW;
+						if (MAC_SEL[0]) MB <= DW;
 						MACW_EXEC <= MAC_SEL[0];
 						SIGNED <= MAC_OP[0];
 //						SAT <= MAC_S;
