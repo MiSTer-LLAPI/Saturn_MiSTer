@@ -688,16 +688,106 @@ module Saturn
 	assign STVIO_CS_N = ~(CA >= 25'h0400000 && CA <= 25'h040007F && ~CCS0_N);
 `endif
 	
+	
+`ifndef STV_BUILD
 	bit MRES_N;
+	bit CE32K;
 	always @(posedge CLK or negedge RST_N) begin
+		bit  [ 7: 0] CLK_DIV;
+		
 		if (!RST_N) begin
 			MRES_N <= 0;
+			CLK_DIV <= '0;
 		end else begin
-			if (SMPC_CE) MRES_N <= 1;
+			if (SMPC_CE) begin
+				MRES_N <= 1;
+				
+				CE32K <= 0;
+				CLK_DIV <= CLK_DIV + 8'd1;
+				if (CLK_DIV == 8'd121) begin
+					CLK_DIV <= '0;
+					CE32K <= 1;
+				end
+			end
 		end
 	end
 	
-	SMPC SMPC
+	SMPC #("rtl/Saturn/SMPC/smpc.mif") SMPC
+	(
+		.CLK(CLK),
+		.RST_N(RST_N),
+		.EN(1'b1),
+		
+		.CE(SMPC_CE),
+		.CE32K(CE32K & SMPC_CE),
+		
+		.RESET_N(MRES_N),
+		
+		.A(CA[6:1]),
+		.DBI(CDI[7:0]),
+		.DBO(SMPC_DO),
+		.CS_N(SMPCCE_N),
+		.RW_N(MWR_N),
+		
+		.D0(MIRQ_N),
+		.D1(1'b1),
+		.D2(1'b0),
+		.D3(SRES_N),
+		.D4(SNDRES_N),
+		.D5(SYSRES_N),
+		.D6(MSHRES_N),
+		.D7(MSHNMI_N),
+		.D8(SSHRES_N),
+		.D9(SSHNMI_N),
+		.D10(SMPC_DOTSEL),
+		.D13_INT0(1'b1),
+		
+		.R01_INT2(IRQV_N),
+		
+		.PIOA_I(SMPC_PDR1I),
+		.PIOA_O(SMPC_PDR1O),
+		.PIOA_D(SMPC_DDR1),
+		.PIOB_I(SMPC_PDR2I),
+		.PIOB_O(SMPC_PDR2O),
+		.PIOB_D(SMPC_DDR2),
+		
+		.R5(SMPC_AREA),
+		
+		.R60_D(),
+		.R60_O(),
+		.R60_I(1'b0),
+		
+		.R61_D(),
+		.R61_O(),
+		.R61_I(1'b1),
+		
+		.R62_I(1'b0),
+		.R63_I(1'b0),
+		
+		.R70_I(1'b0),
+		.R71_I(1'b0),
+		.R72_O(CDRES_N),
+		.R73_O(),
+		
+		.EXL_N(EXL_N),
+		
+		.EXT_RTC(RTC)
+	);
+	
+`else
+
+	bit MRES_N;
+	always @(posedge CLK or negedge RST_N) begin		
+		if (!RST_N) begin
+			MRES_N <= 0;
+		end else begin
+			if (SMPC_CE) begin
+				MRES_N <= 1;
+			end
+		end
+	end
+	
+	SMPC_HLE SMPC
 	(
 		.CLK(CLK),
 		.RST_N(RST_N),
@@ -739,6 +829,7 @@ module Saturn
 		.PDR2O(SMPC_PDR2O),
 		.DDR2(SMPC_DDR2)
 	);
+`endif
 	
 	VDP1 VDP1
 	(

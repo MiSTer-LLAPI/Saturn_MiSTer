@@ -1,0 +1,106 @@
+name: LLAPI experimental test build
+on:
+  push:
+    branches: [update-official-20261024]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saturn-llapi-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Import verified source on the experimental branch
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = update-official-20261024
+          if test -f source-import.json; then
+            python3 - <<'PY'
+          import hashlib, json, re
+          from pathlib import Path
+          m = json.loads(Path('source-import.json').read_text())
+          assert re.fullmatch('[0-9a-f]{40}', m['commit'])
+          assert re.fullmatch('[0-9a-f]{40}', m['tree'])
+          assert re.fullmatch('[0-9a-f]{64}', m['sha256'])
+          assert hashlib.sha256(Path('saturn-integration.bundle').read_bytes()).hexdigest() == m['sha256']
+          Path('/tmp/llapi-source').write_text(m['commit'] + '\n' + m['tree'] + '\n')
+          PY
+            mapfile -t expected < /tmp/llapi-source
+            git bundle verify saturn-integration.bundle
+            git fetch ./saturn-integration.bundle refs/heads/update-official-20261024
+            test "$(git rev-parse FETCH_HEAD)" = "${expected[0]}"
+            test "$(git rev-parse 'FETCH_HEAD^{tree}')" = "${expected[1]}"
+            # Keep both source histories, and only fast-forward this test branch.
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            imported=$(printf '%s\n' 'Import verified LLAPI integration of official core 2026-10-24' | git commit-tree "${expected[1]}" -p "$GITHUB_SHA" -p "${expected[0]}")
+            git push origin "$imported:refs/heads/$GITHUB_REF_NAME"
+            echo "sha=$imported" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+  controllers:
+    needs: source
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Test digital and analogue controllers
+        run: |
+          iverilog -g2012 -s llapi_pad_tb -o /tmp/pad-test tests/llapi_pad_tb.sv rtl/hps2pad.sv rtl/ps2keyboard.sv
+          vvp /tmp/pad-test
+  build:
+    needs: [source, controllers]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [Saturn, Saturn_DS]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - name: Compile with Quartus 17.0.2
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$GITHUB_WORKSPACE:/build" -w /build ghcr.io/raetro/quartus:17.0 quartus_sh --flow compile "$PROJECT"
+      - name: Prepare test files
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -euo pipefail
+          mkdir -p test-build
+          cp "output_files/$PROJECT.rbf" "test-build/${PROJECT}_LLAPI_20261024_test.rbf"
+          cp releases/saturn_ramcart.txt test-build/
+          cp LLAPI-TESTING.md test-build/
+          printf 'Source: %s\nOfficial: c072434\nProject: %s\nExperimental, hardware testing required.\n' '${{ needs.source.outputs.sha }}' "$PROJECT" > test-build/SOURCE.txt
+          (cd test-build && sha256sum *.rbf > SHA256SUMS)
+      - name: Upload RBF and build reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.project }}-LLAPI-experimental-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            test-build/
+            output_files/*.rpt
+            output_files/*.summary

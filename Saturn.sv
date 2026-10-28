@@ -17,165 +17,13 @@
 
 module emu
 (
-	//Master input clock
-	input         CLK_50M,
-
-	//Async reset from top-level module.
-	//Can be used as initial reset.
-	input         RESET,
-
-	//Must be passed to hps_io module
-	inout  [48:0] HPS_BUS,
-
-	//Base video clock. Usually equals to CLK_SYS.
-	output        CLK_VIDEO,
-
-	//Multiple resolutions are supported using different CE_PIXEL rates.
-	//Must be based on CLK_VIDEO
-	output        CE_PIXEL,
-
-	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
-	//if VIDEO_ARX[12] or VIDEO_ARY[12] is set then [11:0] contains scaled size instead of aspect ratio.
-	output [12:0] VIDEO_ARX,
-	output [12:0] VIDEO_ARY,
-
-	output  [7:0] VGA_R,
-	output  [7:0] VGA_G,
-	output  [7:0] VGA_B,
-	output        VGA_HS,
-	output        VGA_VS,
-	output        VGA_DE,    // = ~(VBlank | HBlank)
-	output        VGA_F1,
-	output [1:0]  VGA_SL,
-	output        VGA_SCALER, // Force VGA scaler
-	output        VGA_DISABLE, // analog out is off 
-
-	input  [11:0] HDMI_WIDTH,
-	input  [11:0] HDMI_HEIGHT,
-	output        HDMI_FREEZE,
-	output        HDMI_BLACKOUT,
-	output        HDMI_BOB_DEINT,
-
-`ifdef MISTER_FB
-	// Use framebuffer in DDRAM (USE_FB=1 in qsf)
-	// FB_FORMAT:
-	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
-	//    [3]   : 0=16bits 565 1=16bits 1555
-	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
-	//
-	// FB_STRIDE either 0 (rounded to 256 bytes) or multiple of pixel size (in bytes)
-	output        FB_EN,
-	output  [4:0] FB_FORMAT,
-	output [11:0] FB_WIDTH,
-	output [11:0] FB_HEIGHT,
-	output [31:0] FB_BASE,
-	output [13:0] FB_STRIDE,
-	input         FB_VBL,
-	input         FB_LL,
-	output        FB_FORCE_BLANK,
-
-`ifdef MISTER_FB_PALETTE
-	// Palette control for 8bit modes.
-	// Ignored for other video modes.
-	output        FB_PAL_CLK,
-	output  [7:0] FB_PAL_ADDR,
-	output [23:0] FB_PAL_DOUT,
-	input  [23:0] FB_PAL_DIN,
-	output        FB_PAL_WR,
-`endif
-`endif
-
-	output        LED_USER,  // 1 - ON, 0 - OFF.
-
-	// b[1]: 0 - LED status is system status OR'd with b[0]
-	//       1 - LED status is controled solely by b[0]
-	// hint: supply 2'b00 to let the system control the LED.
-	output  [1:0] LED_POWER,
-	output  [1:0] LED_DISK,
-
-	// I/O board button press simulation (active high)
-	// b[1]: user button
-	// b[0]: osd button
-	output  [1:0] BUTTONS,
-
-	input         CLK_AUDIO, // 24.576 MHz
-	output [15:0] AUDIO_L,
-	output [15:0] AUDIO_R,
-	output        AUDIO_S,   // 1 - signed audio samples, 0 - unsigned
-	output  [1:0] AUDIO_MIX, // 0 - no mix, 1 - 25%, 2 - 50%, 3 - 100% (mono)
-
-	//ADC
-	inout   [3:0] ADC_BUS,
-
-	//SD-SPI
-	output        SD_SCK,
-	output        SD_MOSI,
-	input         SD_MISO,
-	output        SD_CS,
-	input         SD_CD,
-
-	//High latency DDR3 RAM interface
-	//Use for non-critical time purposes
-	output        DDRAM_CLK,
-	input         DDRAM_BUSY,
-	output  [7:0] DDRAM_BURSTCNT,
-	output [28:0] DDRAM_ADDR,
-	input  [63:0] DDRAM_DOUT,
-	input         DDRAM_DOUT_READY,
-	output        DDRAM_RD,
-	output [63:0] DDRAM_DIN,
-	output  [7:0] DDRAM_BE,
-	output        DDRAM_WE,
-
-	//SDRAM interface with lower latency
-	output        SDRAM_CLK,
-	output        SDRAM_CKE,
-	output [12:0] SDRAM_A,
-	output  [1:0] SDRAM_BA,
-	inout  [15:0] SDRAM_DQ,
-	output        SDRAM_DQML,
-	output        SDRAM_DQMH,
-	output        SDRAM_nCS,
-	output        SDRAM_nCAS,
-	output        SDRAM_nRAS,
-	output        SDRAM_nWE,
-
-`ifdef MISTER_DUAL_SDRAM
-	//Secondary SDRAM
-	//Set all output SDRAM_* signals to Z ASAP if SDRAM2_EN is 0
-	input         SDRAM2_EN,
-	output        SDRAM2_CLK,
-	output [12:0] SDRAM2_A,
-	output  [1:0] SDRAM2_BA,
-	inout  [15:0] SDRAM2_DQ,
-	output        SDRAM2_nCS,
-	output        SDRAM2_nCAS,
-	output        SDRAM2_nRAS,
-	output        SDRAM2_nWE,
-`endif
-
-	input         UART_CTS,
-	output        UART_RTS,
-	input         UART_RXD,
-	output        UART_TXD,
-	output        UART_DTR,
-	input         UART_DSR,
-
-	// Open-drain User port.
-	// 0 - D+/RX
-	// 1 - D-/TX
-	// 2..6 - USR2..USR6
-	// Set USER_OUT to 1 to read from USER_IN.
-	input   [6:0] USER_IN,
-	output  [6:0] USER_OUT,
-
-	input         OSD_STATUS
+	`include "sys/emu_ports.vh"
 );
 
 	assign ADC_BUS  = 'Z;
 	assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 	//LLAPI
-	assign BUTTONS   = llapi_osd;
+	assign BUTTONS   = {1'b0, osd_btn | llapi_osd};
 	
 	assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
@@ -184,9 +32,14 @@ module emu
 	assign HDMI_FREEZE = 0;
 	assign VGA_DISABLE = 0;
 	
+`ifndef STV_BUILD
+	assign LED_DISK  = cdd_download;
+	assign LED_USER  = sav_pending;
+`else
 	assign LED_DISK  = 0;
+	assign LED_USER  = 0;
+`endif    
 	assign LED_POWER = 0;
-	assign LED_USER  = bios_download;
 	assign VGA_SCALER= 0;
 	assign HDMI_BLACKOUT = 1;
 	assign HDMI_BOB_DEINT = status[29];
@@ -279,7 +132,7 @@ module emu
 	// 0         1         2         3          4         5         6   	   7         8         9
 	// 01234567890123456789012345678901 23456789012345678901234567890123 45678901234567890123456789012345
 	// 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-	// XXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   XX          XXXXXXXXXXXXXXX XX XXXXXXXXXXXX    XX
+	// XXXXXXXXXXXXXXXXXXX  XXXXXXXXXXX   XX      XXXXXXXXXXXXXXXXXXX XX XXXXXXXXXXXX    XX
 	
 	`include "build_id.v"
 	localparam CONF_STR = {
@@ -310,7 +163,12 @@ module emu
 		"P5-,- No Dual Mission;",
 		//END LLAPI
 		"-;",	
-		"O[23:21],Cartridge,None,ROM 2M,DRAM 1M,DRAM 4M,DRAM 6M DEV,BACKUP;",
+		"O[4],Reset on insert,Yes,No;",
+		"-;",
+		"O[23:21],Cartridge,Auto,ROM 2M,DRAM 1M,DRAM 4M,DRAM 6M DEV,BACKUP,None;",
+		"h9-,Auto cartridge:        None;",
+		"hA-,Auto cartridge:     DRAM 1M;",
+		"hB-,Auto cartridge:     DRAM 4M;",
 		"O[35:33],Region,Japan,Taiwan,USA,Brazil,Korea,Asia,Europe,Auto;",
 `else
 		"ST-V;;",
@@ -352,20 +210,12 @@ module emu
 		//LLAPI
 		//"P2O[27],Pad 1 SNAC,OFF,ON;",
 		"P2-;",
-		"D5P2O[17:15],Pad 1,Digital,Virt LGun,Wheel,Mission Stick,3D Pad,Dual Mission,Mouse,Off;",
-		//LLAPI
-		//"P2-;",
-		//"D6P2O[46],LGun P1 XY Ctrl,Joy 1,Mouse;",
-		//"D6P2O[47],LGun P1 Buttons,Joy 1,Mouse;",
-		//"D6P2O[49:48],LGun P1 Crosshair,Small,Medium,Big,None;",
-		//"P2-;",
-		//"P2-;",
-		"D5P2O[20:18],Pad 2,Digital,Virt LGun,Wheel,Mission Stick,3D Pad,Dual Mission,Mouse,Off;",
-		//LLAPI
-		//"P2-;",
-		//"D7P2O[57],LGun P2 XY Ctrl,Joy 2,Mouse;",
-		//"D7P2O[58],LGun P2 Buttons,Joy 2,Mouse;",
-		//"D7P2O[60:59],LGun P2 Crosshair,Small,Medium,Big,None;",
+		"D5P2O[18:15],Pad 1,Digital,Virt LGun,Wheel,Mission Stick,3D Pad,Dual Mission,Mouse,Keyboard,Off;",
+		"P2-;",
+		"P2-;",
+		"P2-;",
+		"D5P2O[45:42],Pad 2,Digital,Virt LGun,Wheel,Mission Stick,3D Pad,Dual Mission,Mouse,Keyboard,Off;",
+		"P2-;",
 `else
 		
 `endif
@@ -397,14 +247,17 @@ module emu
 	wire [13:0] joy_usb_1;
 	wire [13:0] joy_usb_2;
 	wire [13:0] joy_usb_3;
+	wire [13:0] joy_usb_4;
+	wire [7:0] joystick_usb_analog_tl0, joystick_usb_analog_tr0;
+	wire [7:0] joystick_usb_analog_tl1, joystick_usb_analog_tr1;
 	
 	wire [7:0] joystick_usb_analog_lx0;
 	wire [7:0] joystick_usb_analog_ly0;
 	wire [7:0] joystick_usb_analog_lx1;
 	wire [7:0] joystick_usb_analog_ly1;
 						 
-	wire [13:0] joystick_0,joystick_1,joystick_2,joystick_3,joystick_4;
-	wire  [7:0] joy0_x0,joy0_y0,joy0_x1,joy0_y1,joy1_x0,joy1_y0,joy1_x1,joy1_y1,joy0_z1,joy0_z2,joy1_z1,joy1_z2;
+	logic [13:0] joystick_0,joystick_1,joystick_2,joystick_3,joystick_4;
+	logic [7:0] joy0_x0,joy0_y0,joy0_x1,joy0_y1,joy1_x0,joy1_y0,joy1_x1,joy1_y1,joy0_z1,joy0_z2,joy1_z1,joy1_z2;
 	//END LLAPI		
 	
 	wire         ioctl_download,ioctl_upload;
@@ -432,6 +285,13 @@ module emu
 	
 	wire         forced_scandoubler;
 	wire [ 10:0] ps2_key;
+`ifndef STV_BUILD
+	wire [  2:0] ps2_kbd_led_status;
+	wire [  2:0] ps2_kbd_led_use = 3'b111;
+`else
+	wire [  2:0] ps2_kbd_led_status = 3'b000;
+	wire [  2:0] ps2_kbd_led_use = 3'b000;
+`endif
 	wire [ 24:0] ps2_mouse;
 	wire [ 15:0] ps2_mouse_ext;
 	
@@ -496,7 +356,9 @@ module emu
 		.sdram_sz(sdram_sz),
 	
 		.ps2_key(ps2_key),
-		.ps2_mouse(ps2_CF),
+		.ps2_kbd_led_status(ps2_kbd_led_status),
+		.ps2_kbd_led_use(ps2_kbd_led_use),
+		.ps2_mouse(ps2_mouse),
 		.ps2_mouse_ext(ps2_mouse_ext),
 		
 		.RTC(RTC),
@@ -505,9 +367,7 @@ module emu
 	);
 
 `ifndef STV_BUILD
-	//LLAPI
-	//assign menumask = {(status[56:55] != 2'b00), ~lg_p2_ena, ~lg_p1_ena, snac, 1'b1, 1'b1, ~status[8], 1'b1, ~bk_ena};
-	assign menumask = {(status[56:55] != 2'b00), 1'b1, 1'b1, snac, 1'b1, 1'b1, ~status[8], 1'b1, ~bk_ena};
+	assign menumask = {4'b0000, (cart_sel == 3'd0 && cart_auto == 3'd3), (cart_sel == 3'd0 && cart_auto == 3'd2), (cart_sel == 3'd0 && cart_auto == 3'd0), (status[56:55] != 2'b00), 1'b1, 1'b1, 1'b0, 1'b1, 1'b1, ~status[8], 1'b1, ~bk_ena};
 `else
 	assign menumask = {(status[56:55] != 2'b00), 1'b1, 1'b1, ~status[75], 1'b1, 1'b1, ~status[8], ~STV_ALTBIOS, 1'b0};
 `endif
@@ -536,7 +396,10 @@ module emu
 `endif
 	
 `ifndef STV_BUILD
-	wire [2:0] cart_type = status[23:21];
+	wire [2:0] cart_sel = status[23:21];
+	reg  [2:0] cart_auto_pending = 3'd0;
+	reg  [2:0] cart_auto = 3'd0;
+	wire [2:0] cart_type = (cart_sel == 3'd0) ? cart_auto : (cart_sel < 3'd6) ? cart_sel : 3'd0;
 `else
 	wire [2:0] cart_type = 3'd5;
 	wire bios_sel = status[30] & STV_ALTBIOS;
@@ -674,18 +537,21 @@ module emu
 	reg [  7: 0] cd_area_symbol;
 	reg          dezaemon2_hack = 0;
 	always @(posedge clk_sys) begin
+		if (reset && !cdboot_download) cart_auto <= cart_auto_pending;
 		if (cdboot_download && ioctl_wr) begin
-			case (ioctl_addr[7:0])
-				8'h20: game_id[127:112] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h22: game_id[111:96] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h24: game_id[95:80] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h26: game_id[79:64] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h28: game_id[63:48] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h2A: game_id[47:32] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h2C: game_id[31:16] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h2E: game_id[15:0] <= {ioctl_data[7:0],ioctl_data[15:8]};
-				8'h30: dezaemon2_hack <= (game_id[127:64] == "T-16804G");
-				8'h40: cd_area_symbol <= ioctl_data[7:0];
+			case (ioctl_addr)
+				26'h0: cart_auto_pending <= 3'd0;
+				26'h100: cart_auto_pending <= (ioctl_data == 16'hA102) ? 3'd2 : (ioctl_data == 16'hA103) ? 3'd3 : 3'd0;
+				26'h20: game_id[127:112] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h22: game_id[111:96] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h24: game_id[95:80] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h26: game_id[79:64] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h28: game_id[63:48] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h2A: game_id[47:32] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h2C: game_id[31:16] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h2E: game_id[15:0] <= {ioctl_data[7:0],ioctl_data[15:8]};
+				26'h30: dezaemon2_hack <= (game_id[127:64] == "T-16804G");
+				26'h40: cd_area_symbol <= ioctl_data[7:0];
 			endcase
 		end
 	end
@@ -858,24 +724,33 @@ module emu
 	                    (!SMPC_DOTSEL ? 53375000 : 56875000);
 
 	
-	wire SMPC_CE;		//SMPC clock 4.0000MHz
-	CEGen SMPC_CEGen
-	(
-		.CLK(clk_sys),
-		.RST_N(1),
-		.IN_CLK(in_clk),
-		.OUT_CLK(4000000),
-		.CE(SMPC_CE)
-	);
-	
-	wire SCSP_CE;		//SCSP clock 22.5792MHz
+	wire SCSP_2X_CE;
 	CEGen SCSP_CEGen
 	(
 		.CLK(clk_sys),
 		.RST_N(1),
 		.IN_CLK(in_clk),
-		.OUT_CLK(22579200),
-		.CE(SCSP_CE)
+		.IN_CE(1),
+		.OUT_CLK(22579200*2),
+		.CE(SCSP_2X_CE)
+	);
+	
+	wire SCSP_CE;		//SCSP clock 22.5792MHz
+	wire SCSP_DIV;
+	always @(posedge clk_sys) 
+		if (SCSP_2X_CE) SCSP_DIV <= ~SCSP_DIV;
+		
+	assign SCSP_CE = SCSP_2X_CE & SCSP_DIV;
+		
+	wire SMPC_CE;		//SMPC clock 4.0000MHz
+	CEGen SMPC_CEGen
+	(
+		.CLK(clk_sys),
+		.RST_N(1),
+		.IN_CLK(22579200*2),
+		.IN_CE(SCSP_2X_CE),
+		.OUT_CLK(4000000),
+		.CE(SMPC_CE)
 	);
 	
 	wire CD_CE;			//CD clock freq 20.000MHz
@@ -883,7 +758,8 @@ module emu
 	(
 		.CLK(clk_sys),
 		.RST_N(1),
-		.IN_CLK(in_clk),
+		.IN_CLK(22579200*2),
+		.IN_CE(SCSP_2X_CE),
 		.OUT_CLK(20000000*2),
 		.CE(CD_CE)
 	);
@@ -893,7 +769,8 @@ module emu
 	(
 		.CLK(clk_sys),
 		.RST_N(1),
-		.IN_CLK(in_clk),
+		.IN_CLK(22579200*2),
+		.IN_CE(SCSP_2X_CE),
 		.OUT_CLK(44100*2*2),
 		.CE(CDD_2X_CE)
 	);
@@ -984,7 +861,7 @@ module emu
 		.SMPC_AREA(area_code),
 		.SMPC_DOTSEL(SMPC_DOTSEL),
 `ifndef STV_BUILD
-		.SMPC_PDR1I(snac ? USERJOYSTICK : SMPC_PDR1I),
+		.SMPC_PDR1I(SMPC_PDR1I),
 `else
 		.SMPC_PDR1I(7'h5C),
 `endif
@@ -1191,9 +1068,25 @@ module emu
 	);
 `endif
 	
-	assign USERJOYSTICKOUT = SMPC_PDR1O;	
+	// SNAC is unavailable while the user port is used by LLAPI.	
 	
 `ifndef STV_BUILD
+
+	wire pad1_llapi = use_llapi | use_llapi2;
+	wire pad2_llapi = use_llapi & use_llapi2;
+	wire [7:0] pad1_x1 = use_llapi ? joy0_x0 : use_llapi2 ? joy1_x0 : joystick_usb_analog_lx0;
+	wire [7:0] pad2_x1 = pad2_llapi ? joy1_x0 : pad1_llapi ? joystick_usb_analog_lx0 : joystick_usb_analog_lx1;
+	wire [7:0] pad1_y1 = use_llapi ? joy0_y0 : use_llapi2 ? joy1_y0 : joystick_usb_analog_ly0;
+	wire [7:0] pad2_y1 = pad2_llapi ? joy1_y0 : pad1_llapi ? joystick_usb_analog_ly0 : joystick_usb_analog_ly1;
+	wire [7:0] pad1_x2 = use_llapi ? joy0_x1 : use_llapi2 ? joy1_x1 : joystick_usb_analog_tr0;
+	wire [7:0] pad2_x2 = pad2_llapi ? joy1_x1 : pad1_llapi ? joystick_usb_analog_tr0 : joystick_usb_analog_tr1;
+	wire [7:0] pad1_y2 = use_llapi ? joy0_y1 : use_llapi2 ? joy1_y1 : joystick_usb_analog_tl0;
+	wire [7:0] pad2_y2 = pad2_llapi ? joy1_y1 : pad1_llapi ? joystick_usb_analog_tl0 : joystick_usb_analog_tl1;
+	wire [7:0] pad1_z1 = use_llapi ? joy0_z1 : use_llapi2 ? joy1_z1 : 8'd0;
+	wire [7:0] pad2_z1 = pad2_llapi ? joy1_z1 : pad1_llapi ? 8'd0 : 8'd0;
+	wire [7:0] pad1_z2 = use_llapi ? joy0_z2 : use_llapi2 ? joy1_z2 : 8'd0;
+	wire [7:0] pad2_z2 = pad2_llapi ? joy1_z2 : pad1_llapi ? 8'd0 : 8'd0;
+
 	HPS2PAD PAD
 	(
 		.CLK(clk_sys),
@@ -1207,170 +1100,45 @@ module emu
 		.PDR2O(SMPC_PDR2O),
 		.DDR2(SMPC_DDR2),
 		
-		.JOY1(joy1),
-		.JOY2(joy2),
-		
-		//LLAPI
-		.JOY1_X1((~use_llapi & use_llapi2) ? joy1_x0 : joy0_x0),
-		.JOY1_Y1((~use_llapi & use_llapi2) ? joy1_y0 : joy0_y0),
-		.JOY1_X2((~use_llapi & use_llapi2) ? joy1_x1 : joy0_x1),
-		.JOY1_Y2((~use_llapi & use_llapi2) ? joy1_y1 : joy0_y1),
-		.JOY1_Z1((~use_llapi & use_llapi2) ? joy1_z1 : joy0_z1),
-		.JOY1_Z2((~use_llapi & use_llapi2) ? joy1_z2 : joy0_z2),
-		.JOY2_X1((use_llapi & use_llapi2) ? joy1_x0 : 8'b0),
-		.JOY2_Y1((use_llapi & use_llapi2) ? joy1_y0 : 8'b0),
-		.JOY2_X2((use_llapi & use_llapi2) ? joy1_x1 : 8'b0),
-		.JOY2_Y2((use_llapi & use_llapi2) ? joy1_y0 : 8'b0),
-		.JOY2_Z1((use_llapi & use_llapi2) ? joy1_z1 : 8'b0),
-		.JOY2_Z2((use_llapi & use_llapi2) ? joy1_z2 : 8'b0),
-		//END LLAPI
+		.JOY1(status[76] ? joy2 : joy1),
+		.JOY2(status[76] ? joy1 : joy2),
+		.JOY1_X1(status[76] ? pad2_x1 : pad1_x1),
+		.JOY1_Y1(status[76] ? pad2_y1 : pad1_y1),
+		.JOY1_X2(status[76] ? pad2_x2 : pad1_x2),
+		.JOY1_Y2(status[76] ? pad2_y2 : pad1_y2),
+		.JOY1_Z1(status[76] ? pad2_z1 : pad1_z1),
+		.JOY1_Z2(status[76] ? pad2_z2 : pad1_z2),
+		.LLAPI1(status[76] ? pad2_llapi : pad1_llapi),
+		.JOY2_X1(status[76] ? pad1_x1 : pad2_x1),
+		.JOY2_Y1(status[76] ? pad1_y1 : pad2_y1),
+		.JOY2_X2(status[76] ? pad1_x2 : pad2_x2),
+		.JOY2_Y2(status[76] ? pad1_y2 : pad2_y2),
+		.JOY2_Z1(status[76] ? pad1_z1 : pad2_z1),
+		.JOY2_Z2(status[76] ? pad1_z2 : pad2_z2),
+		.LLAPI2(status[76] ? pad1_llapi : pad2_llapi),
 
-		.JOY1_TYPE(status[17:15]),
-		.JOY2_TYPE(status[20:18]),
+		.JOY1_TYPE(status[18:15]),
+		.JOY2_TYPE(status[45:42]),
 
 		.MOUSE(ps2_mouse),
 		.MOUSE_EXT(ps2_mouse_ext),
+		.PS2_KEY(ps2_key),
+		.PS2_LED(ps2_kbd_led_status),
 		
-		.LGUN_P1_TRIG(lg_p1_a),
-		.LGUN_P1_START(lg_p1_start),
-		.LGUN_P1_SENSOR(lg_p1_sensor),
+		.LGUN_P1_TRIG(1'b0),
+		.LGUN_P1_START(1'b0),
+		.LGUN_P1_SENSOR(1'b0),
 		
-		.LGUN_P2_TRIG(lg_p2_a),
-		.LGUN_P2_START(lg_p2_start),
-		.LGUN_P2_SENSOR(lg_p2_sensor)		
+		.LGUN_P2_TRIG(1'b0),
+		.LGUN_P2_START(1'b0),
+		.LGUN_P2_SENSOR(1'b0)		
 	);
 
-//LLAPI ( remove Lightgun feature) Free FPGA space	
-/*	
-`ifndef DEBUG
-	wire lg_p1_ena = (status[17:15]==3'd1);
-	
-	wire       lg_p1_sensor;
-	wire       lg_p1_a;
-	wire       lg_p1_b;
-	wire       lg_p1_c;
-	wire       lg_p1_start;
+// Lightgun logic is excluded to leave FPGA space for LLAPI.
+	wire lg_p1_ena = 1'b0, lg_p2_ena = 1'b0;
+	wire [2:0] lg_p1_target = 3'b0, lg_p2_target = 3'b0;
+	wire [1:0] gun_p1_cross_size = 2'b0, gun_p2_cross_size = 2'b0;
 
-	wire       gun_p1_xy_mode    = status[46];
-	wire       gun_p1_btn_mode   = status[47];
-	wire [1:0] gun_p1_cross_size = status[49:48];
-	wire [7:0] gun_p1_sensor_delay = 8'd2;
-
-	wire CROSS_DRAW_P1;
-	wire [2:0] lg_p1_target = {2'b00, CROSS_DRAW_P1};	// RED Crosshair.
-	
-	lightgun  lightgun_p1
-	(
-		.CLK(clk_sys),
-		.RESET(~rst_sys),
-
-		.MOUSE(ps2_mouse),
-		.MOUSE_XY(gun_p1_xy_mode),		// 0=Use joystick to control LGun XY.
-												// 1=Use Mouse to control LGun XY.
-
-		.JOY_X(joy0_x0),					// Player 1 joystick.
-		.JOY_Y(joy0_y0),
-		.JOY(joystick_0),
-
-		.BTN_MODE(gun_p1_btn_mode),	// 0=Use Joystick buttons for LG.
-												// 1=Use Mouse buttons for LG.
-		
-		.RELOAD(1'b1),						// Enable Auto-Reload.
-
-		.HDE(HBL_N),						// Blanking signals are Active-Low. So should act as "DE" (Data Enable) signals when High!
-		.VDE(VBL_N),						// ie. No need to invert here.
-		.CE_PIX(DCLK),
-		
-		.FIELD(FIELD),
-		.INTERLACE(INTERLACE),
-		.HRES(HRES), 						// input [1:0]   [1]:0-normal,1-hi-res; [0]:0-320p,1-352p
-		.VRES(VRES), 						// input [1:0]   0-224,1-240,2-256
-		.DCE_R(DCE_R),
-		
-		.SIZE(gun_p1_cross_size),
-		.SENSOR_DELAY(gun_p1_sensor_delay),	// Originally based on the MD lightgun module.
-														// Not sure if any Saturn LG games use polling, or even need this? EA
-		.CROSS_DRAW(CROSS_DRAW_P1),
-		
-		.SENSOR(lg_p1_sensor),		// output  SENSOR  ("Light detected" signal, to VDP2).
-		.BTN_A(lg_p1_a),				// output  BTN_A   (used as the Trigger "button" signal, to HPS2PAD).
-		.BTN_B(lg_p1_b),				// output  BTN_B   (used for Auto-Reload in this module - Don't use the BTN_B / lg_p1_b output when using the RELOAD option!)
-		.BTN_C(lg_p1_c),
-		.BTN_START(lg_p1_start)		// (used as the Start button signal, to HPS2PAD).
-	);
-	
-
-	wire lg_p2_ena = (status[20:18]==3'd1);
-	
-	wire       lg_p2_sensor;
-	wire       lg_p2_a;
-	wire       lg_p2_b;
-	wire       lg_p2_c;
-	wire       lg_p2_start;
-
-	wire       gun_p2_xy_mode    = status[57];
-	wire       gun_p2_btn_mode   = status[58];
-	wire [1:0] gun_p2_cross_size = status[60:59];
-	wire [7:0] gun_p2_sensor_delay = 8'd2;
-	
-	wire CROSS_DRAW_P2;
-	wire [2:0] lg_p2_target = {1'b0, CROSS_DRAW_P2, 1'b0};	// GREEN Crosshair.
-
-	lightgun  lightgun_p2
-	(
-		.CLK(clk_sys),
-		.RESET(~rst_sys),
-
-		.MOUSE(ps2_mouse),
-		.MOUSE_XY(gun_p2_xy_mode),		// 0=Use joystick to control LGun XY.
-												// 1=Use Mouse to control LGun XY.
-
-		.JOY_X(joy1_x0),					// Player 2 joystick.
-		.JOY_Y(joy1_y0),
-		.JOY(joystick_1),
-
-		.BTN_MODE(gun_p2_btn_mode),	// 0=Use Joystick buttons for LG.
-												// 1=Use Mouse buttons for LG.
-		
-		.RELOAD(1'b1),						// Enable Auto-Reload.
-
-		.HDE(HBL_N),						// Blanking signals are Active-Low. So should act as "DE" (Data Enable) signals when High!
-		.VDE(VBL_N),						// ie. No need to invert here.
-		.CE_PIX(DCLK),
-		
-		.FIELD(FIELD),
-		.INTERLACE(INTERLACE),
-		.HRES(HRES), 						// input [1:0]   [1]:0-normal,1-hi-res; [0]:0-320p,1-352p
-		.VRES(VRES), 						// input [1:0]   0-224,1-240,2-256
-		.DCE_R(DCE_R),
-		
-		.SIZE(gun_p2_cross_size),
-		.SENSOR_DELAY(gun_p2_sensor_delay),	// Originally based on the MD lightgun module.
-														// Not sure if any Saturn LG games use polling, or even need this? EA
-		.CROSS_DRAW(CROSS_DRAW_P2),
-		
-		.SENSOR(lg_p2_sensor),		// output  SENSOR  ("Light detected" signal, to VDP2).
-		.BTN_A(lg_p2_a),				// output  BTN_A   (used as the Trigger "button" signal, to HPS2PAD).
-		.BTN_B(lg_p2_b),				// output  BTN_B   (used for Auto-Reload in this module - Don't use the BTN_B / lg_p1_b output when using the RELOAD option!)
-		.BTN_C(lg_p2_c),
-		.BTN_START(lg_p2_start)		// (used as the Start button signal, to HPS2PAD).
-	);
-`else
-	wire lg_p1_ena = 0;
-	wire lg_p1_a = 0;
-	wire lg_p1_start = 0;
-	wire lg_p1_sensor = 0;
-	wire [2:0] lg_p1_target = '0;
-	wire [1:0] gun_p1_cross_size = '0;
-		
-	wire lg_p2_ena = 0;
-	wire lg_p2_a = 0;
-	wire lg_p2_start = 0;
-	wire lg_p2_sensor = 0;	
-	wire [2:0] lg_p2_target = '0;
-	wire [1:0] gun_p2_cross_size = '0;
-`endif
-*/
 	
 	wire [13:1] CD_BUF_ADDR;
 	wire [15:0] CD_BUF_DI;
@@ -1453,8 +1221,8 @@ wire [71:0] llapi_analog, llapi_analog2;
 wire [7:0]  llapi_type, llapi_type2;
 wire llapi_en, llapi_en2;
 wire llapi_latch_o, llapi_latch_o2, llapi_data_o, llapi_data_o2;
-wire [13:0] joy_ll_a;
-wire [13:0] joy_ll_b;
+logic [13:0] joy_ll_a;
+logic [13:0] joy_ll_b;
 
 //Assign (DOWN + START + FIRST BUTTON) Combinaison to bring the OSD up - P1 and P2 ports.
 wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
@@ -1468,6 +1236,7 @@ wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (l
 // 5 = RX-   = P2 Data
 
 always_comb begin
+		USER_OUT = 7'b1111111;
 		USER_OUT[0] = llapi_latch_o;
 		USER_OUT[1] = llapi_data_o;
 		USER_OUT[2] = OSD_STATUS; // Blister LED
@@ -1528,11 +1297,11 @@ always_comb begin
 			llapi_buttons[7],  llapi_buttons[1],  llapi_buttons[0], // C B A
 			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
 		};
-		joy0_x0 = OSD_STATUS ? 8'b0 : llapi_analog[7:0] - 128; //Left stick X
-		joy0_y0 = OSD_STATUS ? 8'b0 : llapi_analog[15:8] - 128; //Left stick Y
+		joy0_x0 = OSD_STATUS ? 8'b0 : llapi_analog[7:0] - 8'd128; //Left stick X
+		joy0_y0 = OSD_STATUS ? 8'b0 : llapi_analog[15:8] - 8'd128; //Left stick Y
 		
-		joy0_x1 = OSD_STATUS ? 8'b0 : llapi_analog[31:24] - 128; //Right stick X
-		joy0_y1 = OSD_STATUS ? 8'b0 : llapi_analog[39:32] - 128; //Right stick Y
+		joy0_x1 = OSD_STATUS ? 8'b0 : llapi_analog[31:24] - 8'd128; //Right stick X
+		joy0_y1 = OSD_STATUS ? 8'b0 : llapi_analog[39:32] - 8'd128; //Right stick Y
 		
 		joy0_z1 = OSD_STATUS ? 8'b0 : llapi_analog[47:40]; //Left trigger
 		joy0_z2 = OSD_STATUS ? 8'b0 : llapi_analog[23:16]; //Right trigger
@@ -1566,11 +1335,11 @@ always_comb begin
 			llapi_buttons2[7],  llapi_buttons2[1],  llapi_buttons2[0], // C B A
 			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
 		};
-		joy1_x0 = OSD_STATUS ? 8'b0 : llapi_analog2[7:0] - 128; //Left stick X
-		joy1_y0 = OSD_STATUS ? 8'b0 : llapi_analog2[15:8] - 128; //Left stick Y
+		joy1_x0 = OSD_STATUS ? 8'b0 : llapi_analog2[7:0] - 8'd128; //Left stick X
+		joy1_y0 = OSD_STATUS ? 8'b0 : llapi_analog2[15:8] - 8'd128; //Left stick Y
 		
-		joy1_x1 = OSD_STATUS ? 8'b0 : llapi_analog2[31:24] - 128; //Right stick X
-		joy1_y1 = OSD_STATUS ? 8'b0 : llapi_analog2[39:32] - 128; //Right stick Y
+		joy1_x1 = OSD_STATUS ? 8'b0 : llapi_analog2[31:24] - 8'd128; //Right stick X
+		joy1_y1 = OSD_STATUS ? 8'b0 : llapi_analog2[39:32] - 8'd128; //Right stick Y
 		
 		joy1_z1 = OSD_STATUS ? 8'b0 : llapi_analog2[47:40]; //Left trigger
 		joy1_z2 = OSD_STATUS ? 8'b0 : llapi_analog2[23:16]; //Right trigger
@@ -1618,11 +1387,11 @@ always_comb begin
                 joystick_4 = joy_usb_2;
 				
         end else begin
-                joystick_0 = 0;
-                joystick_1 = 0;
-                joystick_2 = 0;
-                joystick_3 = 0;
-                joystick_4 = 0;
+                joystick_0 = joy_usb_0;
+                joystick_1 = joy_usb_1;
+                joystick_2 = joy_usb_2;
+                joystick_3 = joy_usb_3;
+                joystick_4 = joy_usb_4;
 		end
 end
 
@@ -2180,6 +1949,7 @@ end
 	end
 
 	assign sd_buff_din = tmpram_sd_buff_q; 
+	assign ioctl_upload_req = 0;
 `else
 	wire bk_change  = (~SRAM_CS_N & ~MEM_DQM_N[0]);
 	wire bk_load    = status[24];
@@ -2328,7 +2098,7 @@ end
 	wire [7:0] crop_b = (hcrop_en && hcrop_blank) ? 8'd0 : cofi_b;
 `endif
 
-	video_mixer #(.LINE_LENGTH((352*2)+8), .HALF_DEPTH(0), .GAMMA(1)) video_mixer
+	video_mixer #(.LINE_LENGTH(8), .HALF_DEPTH(0), .GAMMA(1)) video_mixer
 	(
 		.*,
 	
@@ -2432,5 +2202,6 @@ end
 
 
 endmodule
+
 
 
